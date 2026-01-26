@@ -63,6 +63,12 @@ app:
     create-admin: true
     admin-email: "phatmenghor19@gmail.com"
     admin-password: "88889999"
+  storage:
+    base-url: http://localhost:5000
+    encryption-key: "your-secure-encryption-key-32chars!"
+    cleanup:
+      enabled: true
+      interval-hours: 1
 
 springdoc:
   swagger-ui:

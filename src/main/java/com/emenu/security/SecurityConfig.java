@@ -55,6 +55,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/admin-token").permitAll()
                         .requestMatchers("/api/v1/users/api-key").permitAll()
 
+                        // ===== STORAGE RESOURCE ENDPOINTS =====
+                        // Public download endpoint (for shared resources)
+                        .requestMatchers("/api/v1/storage/resources/public/**").permitAll()
+                        // Storage API endpoints use X-Storage-Api-Key header for authentication
+                        .requestMatchers("/api/v1/storage/resources/**").permitAll()
+                        // Storage API key management requires ADMIN role (handled by @PreAuthorize)
+                        .requestMatchers("/api/v1/storage/api-keys/**").authenticated()
+
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/swagger-resources/**", "/webjars/**").permitAll()
                         .requestMatchers("/swagger-config", "/api-docs/**").permitAll()
@@ -78,7 +86,7 @@ public class SecurityConfig {
             setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
             setAllowedHeaders(List.of("*"));
             setAllowCredentials(true); // allow cookies / auth headers
-            setExposedHeaders(List.of("Authorization", "Content-Disposition", "Content-Type"));
+            setExposedHeaders(List.of("Authorization", "Content-Disposition", "Content-Type", "X-Storage-Api-Key"));
             setMaxAge(3600L);
         }});
         return source;
