@@ -9,6 +9,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "resource_files", indexes = {
@@ -17,7 +19,8 @@ import lombok.NoArgsConstructor;
         @Index(name = "idx_resource_file_app_name", columnList = "application_name"),
         @Index(name = "idx_resource_file_status", columnList = "status"),
         @Index(name = "idx_resource_file_resource_id_deleted", columnList = "resource_id, is_deleted"),
-        @Index(name = "idx_resource_file_app_day", columnList = "application_name, upload_day, is_deleted")
+        @Index(name = "idx_resource_file_app_day",     columnList = "application_name, upload_day, is_deleted"),
+        @Index(name = "idx_resource_file_tracker_id",  columnList = "resource_tracker_id")
 })
 @Data
 @NoArgsConstructor
@@ -79,4 +82,11 @@ public class ResourceFile extends BaseUUIDEntity {
 
     @Column(name = "error_message")
     private String errorMessage;
+
+    /**
+     * Foreign key to the ResourceTracker record for this (applicationName, resourceId) pair.
+     * Allows easy monitoring — join ResourceFile → ResourceTracker to see firstUsedAt / lastUsedAt.
+     */
+    @Column(name = "resource_tracker_id", columnDefinition = "uuid")
+    private UUID resourceTrackerId;
 }

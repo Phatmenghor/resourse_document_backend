@@ -29,6 +29,7 @@ public class ResourceFileResponse {
     private Long fileSize;
     private FileStatus status;
     private String previewUrl;
+    private UUID resourceTrackerId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

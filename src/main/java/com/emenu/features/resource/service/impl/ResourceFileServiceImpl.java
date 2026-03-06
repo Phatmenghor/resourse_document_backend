@@ -15,6 +15,7 @@ import com.emenu.features.resource.mapper.ResourceFileMapper;
 import com.emenu.features.resource.models.ResourceFile;
 import com.emenu.features.resource.repository.ResourceFileRepository;
 import com.emenu.features.resource.service.ResourceFileService;
+import com.emenu.features.resource.service.ResourceTrackerService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ public class ResourceFileServiceImpl implements ResourceFileService {
     private final ResourceFileMapper resourceFileMapper;
     private final AppKeyService appKeyService;
     private final ResourceFileProducer resourceFileProducer;
+    private final ResourceTrackerService resourceTrackerService;
 
     @Value("${resource.storage.base-path:/app/storage}")
     private String storagePath;
@@ -79,7 +81,10 @@ public class ResourceFileServiceImpl implements ResourceFileService {
                 + (extension.isEmpty() ? "" : "." + extension);
         String filePath = folderPath + physicalFileName;
 
-        // 5. Persist metadata record with PENDING status (no file bytes in DB)
+        // 5. Upsert tracker: create or refresh lastUsedAt for this (appName, resourceId) pair
+        UUID trackerId = resourceTrackerService.upsert(appName, request.getResourceId());
+
+        // 6. Persist metadata record with PENDING status (no file bytes in DB)
         ResourceFile resourceFile = new ResourceFile();
         resourceFile.setFileUuid(physicalFileName);
         resourceFile.setOriginalFileName(physicalFileName);
@@ -91,6 +96,7 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         resourceFile.setFolderPath(folderPath);
         resourceFile.setFilePath(filePath);
         resourceFile.setStatus(FileStatus.PENDING);
+        resourceFile.setResourceTrackerId(trackerId);
 
         ResourceFile saved = resourceFileRepository.save(resourceFile);
 
@@ -241,6 +247,9 @@ public class ResourceFileServiceImpl implements ResourceFileService {
                 + (extension.isEmpty() ? "" : "." + extension);
         String filePath = folderPath + physicalFileName;
 
+        // Upsert tracker: create or refresh lastUsedAt for this (appName, resourceId) pair
+        UUID trackerId = resourceTrackerService.upsert(appName, resourceId);
+
         // Write file directly to disk (synchronous — no Kafka needed for multipart)
         try {
             Path target = Paths.get(storagePath, filePath);
@@ -261,6 +270,7 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         resourceFile.setUploadDay(today.format(FOLDER_DATE));
         resourceFile.setFolderPath(folderPath);
         resourceFile.setFilePath(filePath);
+        resourceFile.setResourceTrackerId(trackerId);
         resourceFile.setStatus(FileStatus.COMPLETED);
 
         ResourceFile saved = resourceFileRepository.save(resourceFile);
