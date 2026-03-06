@@ -25,9 +25,11 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -45,7 +47,10 @@ public class ResourceFileServiceImpl implements ResourceFileService {
     @Value("${resource.storage.base-path:/app/storage}")
     private String storagePath;
 
-    private static final DateTimeFormatter DAY_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    // Folder path keeps yyyy-MM-dd for directory organisation
+    private static final DateTimeFormatter FOLDER_DATE   = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    // Physical filename prefix: ddMMyyyy  e.g. 06032026
+    private static final DateTimeFormatter FILE_DATE     = DateTimeFormatter.ofPattern("ddMMyyyy");
 
     // ─────────────────────── UPLOAD ───────────────────────────────
 
@@ -61,27 +66,28 @@ public class ResourceFileServiceImpl implements ResourceFileService {
 
         // 3. Determine file type and build folder path
         FileType fileType = resolveFileType(request.getMimeType());
-        String today = LocalDate.now().format(DAY_FORMATTER);
+        LocalDate today = LocalDate.now();
         String subFolder = fileType == FileType.IMAGE ? "images" : "documents";
 
-        // Folder structure: applicationName/yyyy-MM-dd/images|documents/
-        String folderPath = appName + "/" + today + "/" + subFolder + "/";
+        // Folder structure: appName/yyyy-MM-dd/images|documents/
+        String folderPath = appName + "/" + today.format(FOLDER_DATE) + "/" + subFolder + "/";
 
-        // 4. Generate a UUID-based filename
-        String extension = extractExtension(request.getFileName());
-        String fileUuid = UUID.randomUUID().toString();
-        String physicalFileName = fileUuid + (extension.isEmpty() ? "" : "." + extension);
+        // 4. Generate filename: ddMMyyyy_xxxxxxxx.ext  (e.g. 06032026_a1b2c3d4.jpg)
+        String extension = extensionFromMime(request.getMimeType());
+        String shortId    = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        String physicalFileName = today.format(FILE_DATE) + "_" + shortId
+                + (extension.isEmpty() ? "" : "." + extension);
         String filePath = folderPath + physicalFileName;
 
         // 5. Persist metadata record with PENDING status (no file bytes in DB)
         ResourceFile resourceFile = new ResourceFile();
         resourceFile.setFileUuid(physicalFileName);
-        resourceFile.setOriginalFileName(request.getFileName());
+        resourceFile.setOriginalFileName(physicalFileName);
         resourceFile.setMimeType(request.getMimeType());
         resourceFile.setFileType(fileType);
         resourceFile.setApplicationName(appName);
         resourceFile.setResourceId(request.getResourceId());
-        resourceFile.setUploadDay(today);
+        resourceFile.setUploadDay(today.format(FOLDER_DATE));
         resourceFile.setFolderPath(folderPath);
         resourceFile.setFilePath(filePath);
         resourceFile.setStatus(FileStatus.PENDING);
@@ -97,7 +103,7 @@ public class ResourceFileServiceImpl implements ResourceFileService {
                 .folderPath(folderPath)
                 .filePath(filePath)
                 .mimeType(request.getMimeType())
-                .originalFileName(request.getFileName())
+                .originalFileName(physicalFileName)
                 .base64Data(rawBase64)
                 .build();
 
@@ -214,6 +220,54 @@ public class ResourceFileServiceImpl implements ResourceFileService {
                 .build();
     }
 
+    // ─────────────────────── MULTIPART UPLOAD ─────────────────────
+
+    @Override
+    @Transactional
+    public ResourceFileResponse uploadMultipart(String key, String resourceId,
+                                                org.springframework.web.multipart.MultipartFile file) {
+        AppKey appKey = appKeyService.validateAndGetAppKey(key);
+        String appName = appKey.getApplicationName();
+
+        String mimeType   = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+        FileType fileType = resolveFileType(mimeType);
+        LocalDate today   = LocalDate.now();
+        String subFolder  = fileType == FileType.IMAGE ? "images" : "documents";
+        String folderPath = appName + "/" + today.format(FOLDER_DATE) + "/" + subFolder + "/";
+
+        String extension      = extensionFromMime(mimeType);
+        String shortId        = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        String physicalFileName = today.format(FILE_DATE) + "_" + shortId
+                + (extension.isEmpty() ? "" : "." + extension);
+        String filePath = folderPath + physicalFileName;
+
+        // Write file directly to disk (synchronous — no Kafka needed for multipart)
+        try {
+            Path target = Paths.get(storagePath, filePath);
+            Files.createDirectories(target.getParent());
+            Files.write(target, file.getBytes());
+        } catch (IOException e) {
+            log.error("Failed to write multipart file: {}", e.getMessage());
+            throw new RuntimeException("File write failed: " + e.getMessage());
+        }
+
+        ResourceFile resourceFile = new ResourceFile();
+        resourceFile.setFileUuid(physicalFileName);
+        resourceFile.setOriginalFileName(physicalFileName);
+        resourceFile.setMimeType(mimeType);
+        resourceFile.setFileType(fileType);
+        resourceFile.setApplicationName(appName);
+        resourceFile.setResourceId(resourceId);
+        resourceFile.setUploadDay(today.format(FOLDER_DATE));
+        resourceFile.setFolderPath(folderPath);
+        resourceFile.setFilePath(filePath);
+        resourceFile.setStatus(FileStatus.COMPLETED);
+
+        ResourceFile saved = resourceFileRepository.save(resourceFile);
+        log.info("Multipart upload saved: {} | app: {} | resourceId: {}", physicalFileName, appName, resourceId);
+        return resourceFileMapper.toResponse(saved);
+    }
+
     // ─────────────────────── HELPERS ──────────────────────────────
 
     private ResourceFile findActiveById(UUID id) {
@@ -228,9 +282,24 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         return FileType.DOCUMENT;
     }
 
-    private String extractExtension(String fileName) {
-        if (fileName == null || !fileName.contains(".")) return "";
-        return fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+    /** Derive file extension from MIME type (e.g. image/jpeg → jpg). */
+    private String extensionFromMime(String mimeType) {
+        if (mimeType == null) return "";
+        return switch (mimeType.toLowerCase()) {
+            case "image/jpeg"                -> "jpg";
+            case "image/png"                 -> "png";
+            case "image/gif"                 -> "gif";
+            case "image/webp"                -> "webp";
+            case "image/svg+xml"             -> "svg";
+            case "application/pdf"           -> "pdf";
+            case "application/msword"        -> "doc";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "docx";
+            case "application/vnd.ms-excel"  -> "xls";
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"       -> "xlsx";
+            case "text/plain"                -> "txt";
+            case "video/mp4"                 -> "mp4";
+            default -> "";
+        };
     }
 
     private String stripBase64Prefix(String base64) {

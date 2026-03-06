@@ -6,27 +6,15 @@ import lombok.Data;
 @Data
 public class ResourceUploadRequest {
 
-    /**
-     * API key to identify the application uploading the file.
-     */
     @NotBlank(message = "API key is required")
     private String key;
 
-    /**
-     * Business/resource identifier for grouping (e.g. business ID).
-     * Used to bulk-delete all files belonging to a resource.
-     */
     @NotBlank(message = "Resource ID is required")
     private String resourceId;
 
     /**
-     * Original file name including extension (e.g. "invoice.pdf", "photo.jpg").
-     */
-    @NotBlank(message = "File name is required")
-    private String fileName;
-
-    /**
      * MIME type of the file (e.g. "image/jpeg", "application/pdf").
+     * Used to determine file type and extension.
      */
     @NotBlank(message = "MIME type is required")
     private String mimeType;

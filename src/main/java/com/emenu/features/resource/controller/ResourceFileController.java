@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -32,6 +33,21 @@ public class ResourceFileController {
         ResourceFileResponse response = resourceFileService.upload(request);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(ApiResponse.success("File upload queued successfully", response));
+    }
+
+    /**
+     * Multipart upload — accepts real file directly (no base64).
+     * Status is COMPLETED immediately. Best for Swagger / testing.
+     * File name format: ddMMyyyy_xxxxxxxx.ext (e.g. 06032026_a1b2c3d4.jpg)
+     */
+    @PostMapping(value = "/upload-multipart", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<ResourceFileResponse>> uploadMultipart(
+            @RequestParam("key") String key,
+            @RequestParam("resourceId") String resourceId,
+            @RequestParam("file") MultipartFile file) {
+        ResourceFileResponse response = resourceFileService.uploadMultipart(key, resourceId, file);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("File uploaded successfully", response));
     }
 
     /**
