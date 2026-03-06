@@ -1,4 +1,4 @@
-# Dev profile — app runs from project root (e.g. IntelliJ or mvn spring-boot:run)
+# Dev profile — runs in Docker Desktop (Windows: /d/e_menu/resourse-srevice-backend)
 spring:
   datasource:
     url: jdbc:postgresql://192.168.103.106:5432/notification_service
@@ -6,9 +6,9 @@ spring:
     password: "123cp!@#"
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: kafka:29092
 
 resource:
   storage:
-    base-path: ./storage
-    base-url: http://localhost:5000
+    base-path: /app/storage
+    base-url: http://localhost:6060

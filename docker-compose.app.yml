@@ -1,7 +1,8 @@
 # ─────────────────────────────────────────────────────────────
 #  Application service — Spring Boot
-#  All config is read from application-prod.yaml (no env block).
-#  Start with:  ./run.sh app start
+#  All config is read from application-{profile}.yaml (no env block).
+#  Container runs on port 8080, exposed to host on port 6060.
+#  Start with:  docker compose -f docker-compose.app.yml up -d --build
 # ─────────────────────────────────────────────────────────────
 services:
 
@@ -12,7 +13,7 @@ services:
     container_name: resource-service
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "6060:8080"
     volumes:
       # Uploaded files persist on the host at ./storage
       - ./storage:/app/storage

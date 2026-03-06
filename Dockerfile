@@ -29,7 +29,7 @@ RUN mkdir -p /app/storage
 COPY --from=builder /build/target/*.jar app.jar
 
 # Expose application port
-EXPOSE 5000
+EXPOSE 8080
 
 # Default active profile is prod; override via SPRING_PROFILES_ACTIVE env var
 ENV SPRING_PROFILES_ACTIVE=prod
