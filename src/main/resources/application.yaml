@@ -32,6 +32,11 @@ spring:
     producer:
       acks: all
       retries: 3
+    # Allow large payloads (50 MB) for file uploads
+    properties:
+      max.request.size: 52428800
+      message.max.bytes: 52428800
+      fetch.message.max.bytes: 52428800
 
 server:
   port: 5000
@@ -63,6 +68,18 @@ app:
     create-admin: true
     admin-email: "phatmenghor19@gmail.com"
     admin-password: "88889999"
+
+# Resource File Storage
+resource:
+  storage:
+    base-path: /app/storage
+    base-url: http://localhost:5000
+  kafka:
+    topics:
+      upload: resource-file-upload
+      delete: resource-file-delete
+    consumer:
+      group-id: resource-file-group
 
 springdoc:
   swagger-ui:

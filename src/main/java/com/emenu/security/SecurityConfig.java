@@ -55,6 +55,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/admin-token").permitAll()
                         .requestMatchers("/api/v1/users/api-key").permitAll()
 
+                        // Resource file endpoints – upload & preview use their own API key auth
+                        .requestMatchers("/api/v1/resources/upload").permitAll()
+                        .requestMatchers("/api/v1/resources/*/preview").permitAll()
+                        .requestMatchers("/api/v1/resources/by-resource/**").permitAll()
+
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/swagger-resources/**", "/webjars/**").permitAll()
                         .requestMatchers("/swagger-config", "/api-docs/**").permitAll()
