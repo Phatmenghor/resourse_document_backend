@@ -5,9 +5,9 @@ spring:
     active: dev
 
   datasource:
-    url: jdbc:postgresql://165.22.247.142:5432/notification_service
+    url: jdbc:postgresql://192.168.103.106:5432/notification_service
     username: postgres
-    password: Hour1819
+    password: "123cp!@#"
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -72,7 +72,7 @@ app:
 # Resource File Storage
 resource:
   storage:
-    base-path: /app/storage
+    base-path: ./storage
     base-url: http://localhost:5000
   kafka:
     topics:

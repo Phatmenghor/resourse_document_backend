@@ -1,32 +1,14 @@
+# Prod profile — runs inside Docker container
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/notification_service}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:changeme}
+    url: jdbc:postgresql://192.168.103.106:5432/notification_service
+    username: postgres
+    password: "123cp!@#"
 
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
-
-server:
-  port: ${SERVER_PORT:5000}
-
-jwt:
-  secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION:86400000}
+    bootstrap-servers: kafka:29092
 
 resource:
   storage:
-    base-path: ${STORAGE_BASE_PATH:/app/storage}
-    base-url: ${STORAGE_BASE_URL:http://localhost:5000}
-  kafka:
-    topics:
-      upload: resource-file-upload
-      delete: resource-file-delete
-    consumer:
-      group-id: resource-file-group
-
-app:
-  init:
-    create-admin: ${CREATE_ADMIN:false}
-    admin-email: ${ADMIN_EMAIL:admin@example.com}
-    admin-password: ${ADMIN_PASSWORD:changeme}
+    base-path: /app/storage
+    base-url: http://localhost:5000

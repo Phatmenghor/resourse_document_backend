@@ -1,0 +1,24 @@
+# ─────────────────────────────────────────────────────────────
+#  Application service — Spring Boot
+#  All config is read from application-prod.yaml (no env block).
+#  Start with:  ./run.sh app start
+# ─────────────────────────────────────────────────────────────
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: resource-service
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # Uploaded files persist on the host at ./storage
+      - ./storage:/app/storage
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

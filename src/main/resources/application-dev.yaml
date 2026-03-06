@@ -1,20 +1,14 @@
+# Dev profile — app runs from project root (e.g. IntelliJ or mvn spring-boot:run)
 spring:
   datasource:
-    url: jdbc:postgresql://165.22.247.142:5432/notification_service
+    url: jdbc:postgresql://192.168.103.106:5432/notification_service
     username: postgres
-    password: Hour1819
+    password: "123cp!@#"
 
   kafka:
     bootstrap-servers: localhost:9092
 
-# In dev the app runs from the project root, so storage goes into ./storage
 resource:
   storage:
     base-path: ./storage
     base-url: http://localhost:5000
-  kafka:
-    topics:
-      upload: resource-file-upload
-      delete: resource-file-delete
-    consumer:
-      group-id: resource-file-group

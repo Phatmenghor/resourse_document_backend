@@ -1,8 +1,9 @@
+# Local profile — fully local machine (PostgreSQL running on localhost)
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/notification_service
     username: postgres
-    password: Hour1819
+    password: "123cp!@#"
 
   kafka:
     bootstrap-servers: localhost:9092
@@ -11,9 +12,3 @@ resource:
   storage:
     base-path: ./storage
     base-url: http://localhost:5000
-  kafka:
-    topics:
-      upload: resource-file-upload
-      delete: resource-file-delete
-    consumer:
-      group-id: resource-file-group
