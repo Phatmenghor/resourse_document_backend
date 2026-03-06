@@ -1,14 +1,15 @@
 package com.emenu.features.resource.controller;
 
+import com.emenu.features.resource.dto.request.AppNameRequest;
+import com.emenu.features.resource.dto.request.StaleTrackerRequest;
 import com.emenu.features.resource.dto.response.ResourceTrackerResponse;
 import com.emenu.features.resource.service.ResourceTrackerService;
 import com.emenu.shared.dto.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -21,26 +22,28 @@ public class ResourceTrackerController {
     /**
      * List all resourceIds tracked under a given application.
      * Shows firstUsedAt and lastUsedAt for each resourceId.
+     *
+     * Body: { "applicationName": "my-app" }
      */
-    @GetMapping("/by-app/{applicationName}")
+    @PostMapping("/by-app")
     public ResponseEntity<ApiResponse<List<ResourceTrackerResponse>>> listByApp(
-            @PathVariable String applicationName) {
-        List<ResourceTrackerResponse> response = resourceTrackerService.listByApplicationName(applicationName);
+            @Valid @RequestBody AppNameRequest request) {
+        List<ResourceTrackerResponse> response = resourceTrackerService.listByApplicationName(request.getApplicationName());
         return ResponseEntity.ok(ApiResponse.success("Resource trackers retrieved", response));
     }
 
     /**
      * List stale resourceIds — those whose lastUsedAt is before the given date.
-     * Use this to identify which resourceIds have been inactive and can be cleaned up.
+     * Use this to identify inactive resourceIds that can be cleaned up.
      *
-     * @param before          Only return resourceIds not used since this date (yyyy-MM-dd)
-     * @param applicationName (optional) Filter by a specific application; omit to search all apps
+     * Body: { "before": "2026-01-01", "applicationName": "my-app" }
+     *       applicationName is optional — omit to search across all applications.
      */
-    @GetMapping("/stale")
+    @PostMapping("/stale")
     public ResponseEntity<ApiResponse<List<ResourceTrackerResponse>>> listStale(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate before,
-            @RequestParam(required = false) String applicationName) {
-        List<ResourceTrackerResponse> response = resourceTrackerService.listStale(applicationName, before);
+            @Valid @RequestBody StaleTrackerRequest request) {
+        List<ResourceTrackerResponse> response = resourceTrackerService.listStale(
+                request.getApplicationName(), request.getBefore());
         return ResponseEntity.ok(ApiResponse.success("Stale resource trackers retrieved", response));
     }
 }

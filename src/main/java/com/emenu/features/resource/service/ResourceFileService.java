@@ -16,8 +16,8 @@ public interface ResourceFileService {
     ResourceFileResponse upload(ResourceUploadRequest request);
 
     /**
-     * Multipart upload — validates API key, writes file to disk directly (sync), status COMPLETED immediately.
-     * Simpler option; ideal for Swagger/testing.
+     * Multipart upload — validates API key, converts bytes to base64, persists metadata PENDING,
+     * and dispatches Kafka event for async disk write (same pipeline as base64 upload).
      */
     ResourceFileResponse uploadMultipart(String key, String resourceId, MultipartFile file);
 

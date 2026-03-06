@@ -250,19 +250,19 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         // Upsert tracker: create or refresh lastUsedAt for this (appName, resourceId) pair
         UUID trackerId = resourceTrackerService.upsert(appName, resourceId);
 
-        // Write file directly to disk (synchronous — no Kafka needed for multipart)
+        // Convert multipart bytes to base64 for Kafka event (consumer will write to disk)
+        String base64Data;
         try {
-            Path target = Paths.get(storagePath, filePath);
-            Files.createDirectories(target.getParent());
-            Files.write(target, file.getBytes());
+            base64Data = Base64.getEncoder().encodeToString(file.getBytes());
         } catch (IOException e) {
-            log.error("Failed to write multipart file: {}", e.getMessage());
-            throw new RuntimeException("File write failed: " + e.getMessage());
+            log.error("Failed to read multipart file bytes: {}", e.getMessage());
+            throw new RuntimeException("Failed to read uploaded file: " + e.getMessage());
         }
 
+        // Persist metadata with PENDING status — actual disk write happens in Kafka consumer
         ResourceFile resourceFile = new ResourceFile();
         resourceFile.setFileUuid(physicalFileName);
-        resourceFile.setOriginalFileName(physicalFileName);
+        resourceFile.setOriginalFileName(file.getOriginalFilename() != null ? file.getOriginalFilename() : physicalFileName);
         resourceFile.setMimeType(mimeType);
         resourceFile.setFileType(fileType);
         resourceFile.setApplicationName(appName);
@@ -271,10 +271,25 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         resourceFile.setFolderPath(folderPath);
         resourceFile.setFilePath(filePath);
         resourceFile.setResourceTrackerId(trackerId);
-        resourceFile.setStatus(FileStatus.COMPLETED);
+        resourceFile.setStatus(FileStatus.PENDING);
 
         ResourceFile saved = resourceFileRepository.save(resourceFile);
-        log.info("Multipart upload saved: {} | app: {} | resourceId: {}", physicalFileName, appName, resourceId);
+
+        // Send Kafka event — consumer decodes base64 and writes file to disk
+        ResourceUploadEvent event = ResourceUploadEvent.builder()
+                .resourceFileId(saved.getId().toString())
+                .applicationName(appName)
+                .resourceId(resourceId)
+                .fileUuid(physicalFileName)
+                .folderPath(folderPath)
+                .filePath(filePath)
+                .mimeType(mimeType)
+                .originalFileName(resourceFile.getOriginalFileName())
+                .base64Data(base64Data)
+                .build();
+
+        resourceFileProducer.sendUploadEvent(event);
+        log.info("Multipart upload queued via Kafka: {} | app: {} | resourceId: {}", physicalFileName, appName, resourceId);
         return resourceFileMapper.toResponse(saved);
     }
 
