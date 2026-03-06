@@ -22,6 +22,13 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
+  # Redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+
   # Kafka Configuration
   kafka:
     bootstrap-servers: localhost:9092

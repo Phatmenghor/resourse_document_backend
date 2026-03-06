@@ -5,6 +5,11 @@ spring:
     username: postgres
     password: "123cp!@#"
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
   kafka:
     bootstrap-servers: localhost:9092
 

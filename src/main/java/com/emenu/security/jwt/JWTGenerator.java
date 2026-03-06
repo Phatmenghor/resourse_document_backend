@@ -57,6 +57,15 @@ public class JWTGenerator {
         return claims.getSubject();
     }
 
+    public Date getIssuedAtFromJWT(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        return claims.getIssuedAt();
+    }
+
     public Date getExpirationDateFromJWT(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(getSigningKey())

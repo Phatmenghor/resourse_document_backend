@@ -1,102 +1,98 @@
 package com.emenu.security.jwt.impl;
 
-import com.emenu.features.auth.models.BlacklistedToken;
-import com.emenu.features.auth.repository.BlacklistedTokenRepository;
 import com.emenu.security.jwt.JWTGenerator;
 import com.emenu.security.jwt.TokenBlacklistService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.Date;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional
 public class TokenBlacklistServiceImpl implements TokenBlacklistService {
 
-    private final BlacklistedTokenRepository blacklistedTokenRepository;
+    private final StringRedisTemplate redisTemplate;
     private final JWTGenerator jwtGenerator;
 
+    private static final String TOKEN_PREFIX = "blacklist:token:";
+    private static final String USER_PREFIX  = "blacklist:user:";
+
+    /**
+     * Blacklist a specific token — stored with TTL equal to remaining token lifetime.
+     */
     @Override
     public void blacklistToken(String token, String userIdentifier, String reason) {
-        if (blacklistedTokenRepository.existsByToken(token)) {
-            log.warn("Token already blacklisted: {}", userIdentifier);
-            return;
-        }
-
         try {
-            Date expirationDate = jwtGenerator.getExpirationDateFromJWT(token);
-            LocalDateTime expiryDateTime = convertToLocalDateTime(expirationDate);
+            Date expiry = jwtGenerator.getExpirationDateFromJWT(token);
+            long ttlSeconds = Math.max(1, (expiry.getTime() - System.currentTimeMillis()) / 1000);
 
-            BlacklistedToken blacklistedToken = new BlacklistedToken(
-                    token,
+            redisTemplate.opsForValue().set(
+                    TOKEN_PREFIX + token,
                     userIdentifier,
-                    expiryDateTime,
-                    reason
-            );
+                    Duration.ofSeconds(ttlSeconds));
 
-            blacklistedTokenRepository.save(blacklistedToken);
-            log.info("Token blacklisted: {} - Reason: {}", userIdentifier, reason);
-
+            log.info("Token blacklisted for user: {} | TTL: {}s | reason: {}", userIdentifier, ttlSeconds, reason);
         } catch (Exception e) {
-            log.error("Failed to blacklist token: {}", e.getMessage());
+            log.error("Failed to blacklist token for {}: {}", userIdentifier, e.getMessage());
         }
     }
 
+    /**
+     * Invalidate ALL tokens for a user by recording an invalidation timestamp.
+     * Any token whose iat < this timestamp is treated as blacklisted.
+     * TTL = 1 day (covers any reasonable jwt.expiration window).
+     */
     @Override
     public void blacklistAllUserTokens(String userIdentifier, String reason) {
         try {
-            blacklistedTokenRepository.deleteByUserIdentifier(userIdentifier);
-            log.info("All tokens invalidated for user: {} - Reason: {}", userIdentifier, reason);
+            redisTemplate.opsForValue().set(
+                    USER_PREFIX + userIdentifier,
+                    String.valueOf(System.currentTimeMillis()),
+                    Duration.ofDays(1));
+
+            log.info("All tokens invalidated for user: {} | reason: {}", userIdentifier, reason);
         } catch (Exception e) {
-            log.error("Failed to blacklist all user tokens: {}", e.getMessage());
+            log.error("Failed to invalidate all tokens for {}: {}", userIdentifier, e.getMessage());
         }
     }
 
+    /**
+     * Returns true if:
+     *  1. This specific token key exists in Redis, OR
+     *  2. The token was issued before the user-level invalidation timestamp.
+     */
     @Override
     public boolean isTokenBlacklisted(String token) {
-        return blacklistedTokenRepository.existsByToken(token);
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(TOKEN_PREFIX + token))) {
+            return true;
+        }
+        try {
+            String username = jwtGenerator.getUsernameFromJWT(token);
+            String invalidatedAtStr = redisTemplate.opsForValue().get(USER_PREFIX + username);
+            if (invalidatedAtStr != null) {
+                long invalidatedAt = Long.parseLong(invalidatedAtStr);
+                Date issuedAt = jwtGenerator.getIssuedAtFromJWT(token);
+                return issuedAt != null && issuedAt.getTime() < invalidatedAt;
+            }
+        } catch (Exception ignored) {}
+        return false;
     }
 
+    /**
+     * Redis TTL handles expiry automatically — nothing to clean up manually.
+     */
     @Override
     public int cleanupExpiredTokens() {
-        try {
-            LocalDateTime now = LocalDateTime.now();
-            int deletedCount = blacklistedTokenRepository.deleteExpiredTokens(now);
-            
-            if (deletedCount > 0) {
-                log.info("Cleaned up {} expired tokens", deletedCount);
-            }
-            
-            return deletedCount;
-        } catch (Exception e) {
-            log.error("Failed to cleanup expired tokens: {}", e.getMessage());
-            return 0;
-        }
+        log.debug("Redis auto-expires blacklisted tokens via TTL — no manual cleanup needed");
+        return 0;
     }
 
     @Override
-    @Transactional(readOnly = true)
     public BlacklistStats getBlacklistStats() {
-        try {
-            long totalTokens = blacklistedTokenRepository.count();
-            long expiredTokens = blacklistedTokenRepository.countExpiredTokens(LocalDateTime.now());
-            long activeTokens = totalTokens - expiredTokens;
-
-            return new BlacklistStats(totalTokens, expiredTokens, activeTokens);
-        } catch (Exception e) {
-            log.error("Failed to get blacklist stats: {}", e.getMessage());
-            return new BlacklistStats(0, 0, 0);
-        }
-    }
-
-    private LocalDateTime convertToLocalDateTime(Date date) {
-        return date.toInstant()
-                .atZone(java.time.ZoneId.systemDefault())
-                .toLocalDateTime();
+        return new BlacklistStats(0, 0, 0);
     }
 }

@@ -13,6 +13,8 @@ import com.emenu.features.appkey.service.AppKeyService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -50,6 +52,7 @@ public class AppKeyServiceImpl implements AppKeyService {
     }
 
     @Override
+    @Cacheable(value = "app-keys", key = "#id")
     public AppKeyResponse getAppKeyById(UUID id) {
         AppKey appKey = findActiveById(id);
         return appKeyMapper.toResponse(appKey);
@@ -65,6 +68,7 @@ public class AppKeyServiceImpl implements AppKeyService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "app-keys", key = "#id")
     public AppKeyResponse updateAppKey(UUID id, AppKeyUpdateRequest request) {
         AppKey appKey = findActiveById(id);
 
@@ -82,6 +86,7 @@ public class AppKeyServiceImpl implements AppKeyService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "app-keys", key = "#id")
     public void deleteAppKey(UUID id) {
         AppKey appKey = findActiveById(id);
         appKey.softDelete();
@@ -91,6 +96,7 @@ public class AppKeyServiceImpl implements AppKeyService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "app-keys", key = "#id")
     public AppKeyResponse regenerateApiKey(UUID id) {
         AppKey appKey = findActiveById(id);
         appKey.setApiKey(generateSecureApiKey());
@@ -100,6 +106,7 @@ public class AppKeyServiceImpl implements AppKeyService {
     }
 
     @Override
+    @Cacheable(value = "app-keys", key = "#apiKey")
     public AppKey validateAndGetAppKey(String apiKey) {
         return appKeyRepository.findByApiKeyAndIsActiveTrueAndIsDeletedFalse(apiKey)
                 .orElseThrow(() -> new UnauthorizedException("Invalid or inactive API key"));
