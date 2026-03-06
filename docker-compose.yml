@@ -1,4 +1,6 @@
 services:
+
+  # ─── Zookeeper ──────────────────────────────────────────────────
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
@@ -8,8 +10,9 @@ services:
     ports:
       - "2181:2181"
     networks:
-      - notification-network
+      - app-network
 
+  # ─── Kafka ──────────────────────────────────────────────────────
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
@@ -20,13 +23,21 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      # INTERNAL listener for container-to-container; EXTERNAL for host access
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
       KAFKA_LOG_RETENTION_HOURS: 168
+      # Allow large messages (50 MB) for file uploads
+      KAFKA_MESSAGE_MAX_BYTES: 52428800
+      KAFKA_REPLICA_FETCH_MAX_BYTES: 52428800
     networks:
-      - notification-network
+      - app-network
 
+  # ─── Kafka UI ───────────────────────────────────────────────────
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
@@ -36,11 +47,41 @@ services:
       - "8090:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
     networks:
-      - notification-network
+      - app-network
+
+  # ─── Application ────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: resource-service
+    depends_on:
+      - kafka
+    ports:
+      - "5000:5000"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://165.22.247.142:5432/notification_service
+      DB_USERNAME: postgres
+      DB_PASSWORD: Hour1819
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JWT_SECRET: da2bd42bef8f9f957d647ed13571dadd5b59c7055fb723eacdb05154878da17d77d3180385fc232cab38bded0fc7dbda0d439cc275e91164ade266d64d50633bc7
+      JWT_EXPIRATION: 99999999999999999
+      STORAGE_BASE_PATH: /app/storage
+      STORAGE_BASE_URL: http://localhost:5000
+      CREATE_ADMIN: "true"
+      ADMIN_EMAIL: phatmenghor19@gmail.com
+      ADMIN_PASSWORD: "88889999"
+    volumes:
+      # Mount ./storage on host so uploaded files persist across container restarts
+      - ./storage:/app/storage
+    networks:
+      - app-network
+    restart: unless-stopped
 
 networks:
-  notification-network:
+  app-network:
     driver: bridge
