@@ -206,6 +206,33 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         log.info("Bulk soft-deleted {} files for resourceId: {}", files.size(), resourceId);
     }
 
+    @Override
+    @Transactional
+    public void deleteAllByApplicationName(String applicationName) {
+        List<ResourceFile> files = resourceFileRepository.findByApplicationNameAndIsDeletedFalse(applicationName);
+
+        if (files.isEmpty()) {
+            log.info("No active files found for applicationName: {}", applicationName);
+            return;
+        }
+
+        List<String> filePaths = files.stream()
+                .map(ResourceFile::getFilePath)
+                .collect(Collectors.toList());
+
+        files.forEach(ResourceFile::softDelete);
+        resourceFileRepository.saveAll(files);
+
+        ResourceDeleteEvent event = ResourceDeleteEvent.builder()
+                .filePaths(filePaths)
+                .resourceId("bulk-app-delete")
+                .applicationName(applicationName)
+                .build();
+
+        resourceFileProducer.sendDeleteEvent(event);
+        log.info("Bulk soft-deleted {} files for applicationName: {}", files.size(), applicationName);
+    }
+
     // ─────────────────────── COUNTS ───────────────────────────────
 
     @Override

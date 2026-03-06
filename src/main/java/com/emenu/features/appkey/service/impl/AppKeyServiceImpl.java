@@ -4,24 +4,27 @@ import com.emenu.exception.custom.NotFoundException;
 import com.emenu.exception.custom.UnauthorizedException;
 import com.emenu.exception.custom.ValidationException;
 import com.emenu.features.appkey.dto.request.AppKeyCreateRequest;
+import com.emenu.features.appkey.dto.request.AppKeyFilterRequest;
 import com.emenu.features.appkey.dto.request.AppKeyUpdateRequest;
 import com.emenu.features.appkey.dto.response.AppKeyResponse;
 import com.emenu.features.appkey.mapper.AppKeyMapper;
 import com.emenu.features.appkey.models.AppKey;
 import com.emenu.features.appkey.repository.AppKeyRepository;
 import com.emenu.features.appkey.service.AppKeyService;
+import com.emenu.shared.dto.PaginationResponse;
+import com.emenu.shared.pagination.PaginationUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -59,11 +62,25 @@ public class AppKeyServiceImpl implements AppKeyService {
     }
 
     @Override
-    public List<AppKeyResponse> getAllAppKeys() {
-        return appKeyRepository.findAll().stream()
-                .filter(k -> !k.getIsDeleted())
-                .map(appKeyMapper::toResponse)
-                .collect(Collectors.toList());
+    public PaginationResponse<AppKeyResponse> searchAppKeys(AppKeyFilterRequest request) {
+        Pageable pageable = PaginationUtils.createPageable(
+                request.getPageNo(), request.getPageSize(),
+                request.getSortBy(), request.getSortDirection());
+
+        String search = request.getSearch() == null ? "" : request.getSearch().trim();
+        Page<AppKey> page = appKeyRepository.search(search, request.getIsActive(), pageable);
+
+        return PaginationResponse.<AppKeyResponse>builder()
+                .content(page.getContent().stream().map(appKeyMapper::toResponse).toList())
+                .pageNo(page.getNumber() + 1)
+                .pageSize(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .first(page.isFirst())
+                .last(page.isLast())
+                .hasNext(page.hasNext())
+                .hasPrevious(page.hasPrevious())
+                .build();
     }
 
     @Override

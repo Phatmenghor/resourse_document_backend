@@ -48,6 +48,12 @@ public interface ResourceFileService {
     void deleteAllByResourceId(String resourceId);
 
     /**
+     * Bulk-delete all files that belong to an applicationName (e.g. when an API key is revoked).
+     * Soft-deletes all metadata records and schedules physical removal via Kafka.
+     */
+    void deleteAllByApplicationName(String applicationName);
+
+    /**
      * Count files – useful for monitoring storage quotas.
      */
     ResourceCountResponse countByResourceId(String resourceId);

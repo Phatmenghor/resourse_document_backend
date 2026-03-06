@@ -1,5 +1,8 @@
 package com.emenu.features.resource.controller;
 
+import com.emenu.features.appkey.models.AppKey;
+import com.emenu.features.appkey.service.AppKeyService;
+import com.emenu.features.resource.dto.request.ApiKeyRequest;
 import com.emenu.features.resource.dto.request.AppNameRequest;
 import com.emenu.features.resource.dto.request.ResourceFileIdRequest;
 import com.emenu.features.resource.dto.request.ResourceIdRequest;
@@ -24,12 +27,11 @@ import java.util.List;
 public class ResourceFileController {
 
     private final ResourceFileService resourceFileService;
+    private final AppKeyService appKeyService;
 
     /**
      * Upload a file via base64.
-     * Persists metadata with PENDING status and queues the disk-write via Kafka.
-     *
-     * Body: { "key": "...", "resourceId": "...", "mimeType": "image/jpeg", "base64": "..." }
+     * Body: { "key": "...", "resourceId": "...(optional)", "mimeType": "image/jpeg", "base64": "..." }
      */
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<ResourceFileResponse>> upload(
@@ -41,14 +43,12 @@ public class ResourceFileController {
 
     /**
      * Upload a file via multipart form.
-     * Converts bytes to base64 and queues the disk-write via Kafka (PENDING status, async).
-     *
-     * Form fields: key (text), resourceId (text), file (binary)
+     * Form fields: key (text), resourceId (text, optional), file (binary)
      */
     @PostMapping(value = "/upload-multipart", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ResourceFileResponse>> uploadMultipart(
             @RequestPart("key") String key,
-            @RequestPart("resourceId") String resourceId,
+            @RequestPart(value = "resourceId", required = false) String resourceId,
             @RequestPart("file") MultipartFile file) {
         ResourceFileResponse response = resourceFileService.uploadMultipart(key, resourceId, file);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
@@ -114,7 +114,6 @@ public class ResourceFileController {
 
     /**
      * Delete a single file by ID.
-     * Soft-deletes DB record and schedules physical removal via Kafka.
      * Body: { "id": "uuid" }
      */
     @PostMapping("/delete")
@@ -125,7 +124,7 @@ public class ResourceFileController {
     }
 
     /**
-     * Bulk-delete ALL files for a resourceId via Kafka.
+     * Bulk-delete all files for a resourceId.
      * Body: { "resourceId": "..." }
      */
     @PostMapping("/delete-by-resource")
@@ -134,5 +133,32 @@ public class ResourceFileController {
         resourceFileService.deleteAllByResourceId(request.getResourceId());
         return ResponseEntity.ok(
                 ApiResponse.success("All files for resourceId '" + request.getResourceId() + "' deleted", null));
+    }
+
+    /**
+     * Bulk-delete all files belonging to an application name.
+     * Body: { "applicationName": "..." }
+     */
+    @PostMapping("/delete-by-app")
+    public ResponseEntity<ApiResponse<Void>> deleteAllByApp(
+            @Valid @RequestBody AppNameRequest request) {
+        resourceFileService.deleteAllByApplicationName(request.getApplicationName());
+        return ResponseEntity.ok(
+                ApiResponse.success("All files for application '" + request.getApplicationName() + "' deleted", null));
+    }
+
+    /**
+     * Bulk-delete all files whose API key has been stopped/revoked.
+     * Looks up the applicationName from the key, then deletes all its files.
+     * Body: { "apiKey": "rk_abc123..." }
+     */
+    @PostMapping("/delete-by-api-key")
+    public ResponseEntity<ApiResponse<Void>> deleteAllByApiKey(
+            @Valid @RequestBody ApiKeyRequest request) {
+        AppKey appKey = appKeyService.validateAndGetAppKey(request.getApiKey());
+        resourceFileService.deleteAllByApplicationName(appKey.getApplicationName());
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        "All files for application '" + appKey.getApplicationName() + "' deleted", null));
     }
 }

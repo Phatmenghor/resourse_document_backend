@@ -1,7 +1,11 @@
 package com.emenu.features.appkey.repository;
 
 import com.emenu.features.appkey.models.AppKey;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -17,4 +21,14 @@ public interface AppKeyRepository extends JpaRepository<AppKey, UUID> {
     Optional<AppKey> findByApplicationNameAndIsDeletedFalse(String applicationName);
 
     boolean existsByApplicationNameAndIsDeletedFalse(String applicationName);
+
+    @Query("""
+            SELECT k FROM AppKey k
+            WHERE k.isDeleted = false
+              AND (:search IS NULL OR :search = '' OR LOWER(k.applicationName) LIKE LOWER(CONCAT('%', :search, '%')))
+              AND (:isActive IS NULL OR k.isActive = :isActive)
+            """)
+    Page<AppKey> search(@Param("search") String search,
+                        @Param("isActive") Boolean isActive,
+                        Pageable pageable);
 }

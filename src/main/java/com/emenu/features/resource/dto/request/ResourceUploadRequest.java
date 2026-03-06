@@ -9,7 +9,7 @@ public class ResourceUploadRequest {
     @NotBlank(message = "API key is required")
     private String key;
 
-    @NotBlank(message = "Resource ID is required")
+    /** Optional — may be null if the file is not tied to a specific resource. */
     private String resourceId;
 
     /**

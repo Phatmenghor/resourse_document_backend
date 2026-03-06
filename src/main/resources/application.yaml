@@ -29,6 +29,12 @@ spring:
       port: 6379
       timeout: 2000ms
 
+  # Multipart file upload size limits
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 55MB
+
   # Kafka Configuration
   kafka:
     bootstrap-servers: localhost:9092

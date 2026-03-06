@@ -1,11 +1,12 @@
 package com.emenu.features.appkey.service;
 
 import com.emenu.features.appkey.dto.request.AppKeyCreateRequest;
+import com.emenu.features.appkey.dto.request.AppKeyFilterRequest;
 import com.emenu.features.appkey.dto.request.AppKeyUpdateRequest;
 import com.emenu.features.appkey.dto.response.AppKeyResponse;
 import com.emenu.features.appkey.models.AppKey;
+import com.emenu.shared.dto.PaginationResponse;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface AppKeyService {
@@ -14,7 +15,7 @@ public interface AppKeyService {
 
     AppKeyResponse getAppKeyById(UUID id);
 
-    List<AppKeyResponse> getAllAppKeys();
+    PaginationResponse<AppKeyResponse> searchAppKeys(AppKeyFilterRequest request);
 
     AppKeyResponse updateAppKey(UUID id, AppKeyUpdateRequest request);
 
