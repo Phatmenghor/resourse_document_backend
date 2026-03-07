@@ -93,7 +93,6 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         resourceFile.setFileType(fileType);
         resourceFile.setApplicationName(appName);
         resourceFile.setResourceId(request.getResourceId());
-        resourceFile.setUploadDay(today.format(FOLDER_DATE));
         resourceFile.setFilePath(filePath);
         resourceFile.setStatus(FileStatus.PENDING);
         resourceFile.setResourceTrackerId(trackerId);
@@ -294,7 +293,6 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         resourceFile.setFileType(fileType);
         resourceFile.setApplicationName(appName);
         resourceFile.setResourceId(resourceId);
-        resourceFile.setUploadDay(today.format(FOLDER_DATE));
         resourceFile.setFilePath(filePath);
         resourceFile.setResourceTrackerId(trackerId);
         resourceFile.setStatus(FileStatus.PENDING);
