@@ -37,7 +37,7 @@ public class UserController {
     @PostMapping("api-key")
     public ResponseEntity<String> getMyBusinessToken() {
         log.info("Get my business token");
-        return ResponseEntity.ok("aRft2EUB8AdrQp5NLq62NAGF4d2gu6ggSlR48dBMI3o");
+        return ResponseEntity.ok("b5TSde-AOJFV_sI418uY85I1MXg3CbaoLNhR61nRBFq9OhBtVMX4DpqNWVDAOkBJ");
     }
 
     @GetMapping("/profile")
