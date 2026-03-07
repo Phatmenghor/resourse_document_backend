@@ -3,6 +3,7 @@ package com.emenu.features.resource.controller;
 import com.emenu.features.appkey.models.AppKey;
 import com.emenu.features.appkey.service.AppKeyService;
 import com.emenu.features.resource.dto.request.DeleteBulkRequest;
+import com.emenu.features.resource.dto.request.ResourceUploadBatchRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadRequest;
 import com.emenu.features.resource.dto.response.ResourceFileResponse;
 import com.emenu.features.resource.service.ResourceFileService;
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -44,6 +46,24 @@ public class ResourceFileController {
         ResourceFileResponse response = resourceFileService.uploadMultipart(key, resourceId, file);
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(ApiResponse.success("File upload queued successfully", response));
+    }
+
+    @PostMapping("/upload-batch")
+    public ResponseEntity<ApiResponse<List<ResourceFileResponse>>> uploadBatch(
+            @Valid @RequestBody ResourceUploadBatchRequest request) {
+        List<ResourceFileResponse> responses = resourceFileService.uploadBatch(request);
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success("Batch upload queued successfully", responses));
+    }
+
+    @PostMapping(value = "/upload-multipart-batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<List<ResourceFileResponse>>> uploadMultipartBatch(
+            @RequestPart("key") String key,
+            @RequestPart(value = "resourceId", required = false) String resourceId,
+            @RequestPart("files") List<MultipartFile> files) {
+        List<ResourceFileResponse> responses = resourceFileService.uploadMultipartBatch(key, resourceId, files);
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success("Batch upload queued successfully", responses));
     }
 
     // ─────────────────────── GET / PREVIEW ────────────────────────

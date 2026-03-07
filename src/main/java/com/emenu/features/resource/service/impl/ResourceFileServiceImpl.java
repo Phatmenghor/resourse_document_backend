@@ -5,6 +5,7 @@ import com.emenu.enums.resource.FileType;
 import com.emenu.exception.custom.NotFoundException;
 import com.emenu.features.appkey.models.AppKey;
 import com.emenu.features.appkey.service.AppKeyService;
+import com.emenu.features.resource.dto.request.ResourceUploadBatchRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadRequest;
 import com.emenu.features.resource.dto.response.ResourceFileResponse;
 import com.emenu.features.resource.kafka.event.ResourceDeleteEvent;
@@ -284,6 +285,31 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         resourceFileProducer.sendUploadEvent(event);
         log.info("Multipart upload queued via Kafka: {} | app: {} | resourceId: {}", physicalFileName, appName, resourceId);
         return resourceFileMapper.toResponse(saved);
+    }
+
+    // ─────────────────────── BATCH UPLOAD ─────────────────────────
+
+    @Override
+    @Transactional
+    public List<ResourceFileResponse> uploadBatch(ResourceUploadBatchRequest request) {
+        return request.getFiles().stream()
+                .map(base64 -> {
+                    ResourceUploadRequest single = new ResourceUploadRequest();
+                    single.setKey(request.getKey());
+                    single.setResourceId(request.getResourceId());
+                    single.setBase64(base64);
+                    return upload(single);
+                })
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public List<ResourceFileResponse> uploadMultipartBatch(String key, String resourceId,
+                                                           List<org.springframework.web.multipart.MultipartFile> files) {
+        return files.stream()
+                .map(file -> uploadMultipart(key, resourceId, file))
+                .collect(java.util.stream.Collectors.toList());
     }
 
     // ─────────────────────── HELPERS ──────────────────────────────
