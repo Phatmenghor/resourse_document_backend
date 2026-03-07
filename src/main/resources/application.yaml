@@ -56,7 +56,7 @@ jwt:
 
 # ── App init ──
 app:
-  name: "Notification Gateway Service"
+  name: "Resource Gateway Service"
   version: "1.0.0"
   init:
     create-admin: true
