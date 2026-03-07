@@ -82,7 +82,9 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         String filePath = folderPath + physicalFileName;
 
         // 5. Upsert tracker: create or refresh lastUsedAt for this (appName, resourceId) pair
-        UUID trackerId = resourceTrackerService.upsert(appName, request.getResourceId());
+        UUID trackerId = (request.getResourceId() != null && !request.getResourceId().isBlank())
+                ? resourceTrackerService.upsert(appName, request.getResourceId())
+                : null;
 
         // 6. Persist metadata record with PENDING status (no file bytes in DB)
         ResourceFile resourceFile = new ResourceFile();
@@ -275,7 +277,9 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         String filePath = folderPath + physicalFileName;
 
         // Upsert tracker: create or refresh lastUsedAt for this (appName, resourceId) pair
-        UUID trackerId = resourceTrackerService.upsert(appName, resourceId);
+        UUID trackerId = (resourceId != null && !resourceId.isBlank())
+                ? resourceTrackerService.upsert(appName, resourceId)
+                : null;
 
         // Convert multipart bytes to base64 for Kafka event (consumer will write to disk)
         String base64Data;
