@@ -21,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -135,14 +134,6 @@ public class ResourceFileServiceImpl implements ResourceFileService {
             log.error("Failed to read file: {} | error: {}", filePath, e.getMessage());
             throw new NotFoundException("File not found on disk: " + filePath);
         }
-    }
-
-    // ─────────────────────── READ ─────────────────────────────────
-
-    @Override
-    @Cacheable(value = "resource-files", key = "#id")
-    public ResourceFileResponse getById(UUID id) {
-        return resourceFileMapper.toResponse(findActiveById(id));
     }
 
     // ─────────────────────── DELETE ───────────────────────────────

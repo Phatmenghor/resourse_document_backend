@@ -6,7 +6,6 @@ import com.emenu.features.resource.dto.response.ResourceFileResponse;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.UUID;
 
 public interface ResourceFileService {
 
@@ -35,11 +34,6 @@ public interface ResourceFileService {
      * Stream the file bytes back for preview/download by relative file path.
      */
     byte[] preview(String filePath);
-
-    /**
-     * Get metadata for a single file.
-     */
-    ResourceFileResponse getById(UUID id);
 
     /**
      * Delete a single file by ID (soft-delete metadata + schedule physical file removal via Kafka).

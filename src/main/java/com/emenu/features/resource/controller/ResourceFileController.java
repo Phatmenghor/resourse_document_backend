@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/resources")
@@ -65,26 +64,20 @@ public class ResourceFileController {
                 .body(ApiResponse.success("Batch upload queued successfully", responses));
     }
 
-    // ─────────────────────── GET / PREVIEW ────────────────────────
+    // ─────────────────────── PREVIEW ──────────────────────────────
 
     /**
-     * Get file metadata by UUID.
-     * GET /api/v1/resources/{id}
+     * Stream a file using its source path from the upload response.
+     * GET /api/v1/resources/preview/my-app/2026-03-07/07032026_abc123.jpg
      */
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ResourceFileResponse>> getById(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success("Resource file retrieved",
-                resourceFileService.getById(id)));
-    }
-
-    /**
-     * Stream a file using the source value from the upload response.
-     * GET /api/v1/resources/preview?source=my-app/2026-03-07/07032026_abc123.jpg
-     */
-    @GetMapping("/preview")
-    public ResponseEntity<byte[]> previewBySource(@RequestParam String source) {
-        byte[] data     = resourceFileService.preview(source);
-        String mimeType = resolveMimeFromPath(source);
+    @GetMapping("/preview/{appName}/{date}/{filename}")
+    public ResponseEntity<byte[]> preview(
+            @PathVariable String appName,
+            @PathVariable String date,
+            @PathVariable String filename) {
+        String filePath = appName + "/" + date + "/" + filename;
+        byte[] data     = resourceFileService.preview(filePath);
+        String mimeType = resolveMimeFromPath(filePath);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(mimeType))
                 .body(data);
