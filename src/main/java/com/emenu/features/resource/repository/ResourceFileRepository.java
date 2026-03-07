@@ -1,6 +1,10 @@
 package com.emenu.features.resource.repository;
 
+import com.emenu.enums.resource.FileStatus;
+import com.emenu.enums.resource.FileType;
 import com.emenu.features.resource.models.ResourceFile;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,4 +36,22 @@ public interface ResourceFileRepository extends JpaRepository<ResourceFile, UUID
 
     @Query("SELECT COUNT(r) FROM ResourceFile r WHERE r.applicationName = :applicationName AND r.isDeleted = false")
     long countByApplicationName(@Param("applicationName") String applicationName);
+
+    @Query("""
+            SELECT f FROM ResourceFile f
+            WHERE f.isDeleted = false
+              AND (:search IS NULL OR :search = ''
+                   OR LOWER(f.resourceId) LIKE LOWER(CONCAT('%', :search, '%'))
+                   OR LOWER(f.applicationName) LIKE LOWER(CONCAT('%', :search, '%')))
+              AND (:applicationName IS NULL OR :applicationName = '' OR f.applicationName = :applicationName)
+              AND (:resourceId IS NULL OR :resourceId = '' OR f.resourceId = :resourceId)
+              AND (:fileType IS NULL OR f.fileType = :fileType)
+              AND (:status IS NULL OR f.status = :status)
+            """)
+    Page<ResourceFile> search(@Param("search") String search,
+                              @Param("applicationName") String applicationName,
+                              @Param("resourceId") String resourceId,
+                              @Param("fileType") FileType fileType,
+                              @Param("status") FileStatus status,
+                              Pageable pageable);
 }

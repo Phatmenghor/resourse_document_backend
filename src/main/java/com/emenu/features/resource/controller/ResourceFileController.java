@@ -1,12 +1,14 @@
 package com.emenu.features.resource.controller;
 
 import com.emenu.features.resource.dto.request.DeleteBulkRequest;
+import com.emenu.features.resource.dto.request.ResourceFileFilterRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadBatchRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadRequest;
 import com.emenu.features.resource.dto.response.ResourceFileResponse;
 import com.emenu.features.resource.service.ResourceFileService;
 import com.emenu.features.resource.utils.FileUtils;
 import com.emenu.shared.dto.ApiResponse;
+import com.emenu.shared.dto.PaginationResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,6 +25,30 @@ import java.util.List;
 public class ResourceFileController {
 
     private final ResourceFileService resourceFileService;
+
+    // ─────────────────────── SEARCH ───────────────────────────────
+
+    /**
+     * Paginated search with optional filters.
+     *
+     * Body: {
+     *   "search": "my-app",          // optional: searches applicationName & resourceId
+     *   "applicationName": "my-app", // optional: exact match
+     *   "resourceId": "biz-001",     // optional: exact match
+     *   "fileType": "IMAGE",         // optional: IMAGE | DOCUMENT
+     *   "status": "COMPLETED",       // optional: PENDING | PROCESSING | COMPLETED | FAILED
+     *   "pageNo": 1,
+     *   "pageSize": 15,
+     *   "sortBy": "createdAt",
+     *   "sortDirection": "DESC"
+     * }
+     */
+    @PostMapping("/search")
+    public ResponseEntity<ApiResponse<PaginationResponse<ResourceFileResponse>>> search(
+            @Valid @RequestBody ResourceFileFilterRequest request) {
+        PaginationResponse<ResourceFileResponse> response = resourceFileService.search(request);
+        return ResponseEntity.ok(ApiResponse.success("Resource files retrieved", response));
+    }
 
     // ─────────────────────── UPLOAD ───────────────────────────────
 

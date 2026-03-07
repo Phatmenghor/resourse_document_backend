@@ -1,14 +1,19 @@
 package com.emenu.features.resource.service;
 
 import com.emenu.features.resource.dto.request.DeleteBulkRequest;
+import com.emenu.features.resource.dto.request.ResourceFileFilterRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadBatchRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadRequest;
 import com.emenu.features.resource.dto.response.ResourceFileResponse;
+import com.emenu.shared.dto.PaginationResponse;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 public interface ResourceFileService {
+
+    /** Paginated search with optional filters: search, applicationName, resourceId, fileType, status. */
+    PaginationResponse<ResourceFileResponse> search(ResourceFileFilterRequest request);
 
     /**
      * Base64 upload — validates API key, persists metadata PENDING, dispatches Kafka for async write.

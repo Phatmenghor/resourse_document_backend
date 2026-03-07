@@ -5,6 +5,7 @@ import com.emenu.exception.custom.NotFoundException;
 import com.emenu.features.appkey.models.AppKey;
 import com.emenu.features.appkey.service.AppKeyService;
 import com.emenu.features.resource.dto.request.DeleteBulkRequest;
+import com.emenu.features.resource.dto.request.ResourceFileFilterRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadBatchRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadRequest;
 import com.emenu.features.resource.dto.response.ResourceFileResponse;
@@ -17,10 +18,14 @@ import com.emenu.features.resource.repository.ResourceFileRepository;
 import com.emenu.features.resource.service.ResourceFileService;
 import com.emenu.features.resource.service.ResourceTrackerService;
 import com.emenu.features.resource.utils.FileUtils;
+import com.emenu.shared.dto.PaginationResponse;
+import com.emenu.shared.pagination.PaginationUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -50,6 +55,37 @@ public class ResourceFileServiceImpl implements ResourceFileService {
 
     private static final DateTimeFormatter FOLDER_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter FILE_DATE   = DateTimeFormatter.ofPattern("ddMMyyyy");
+
+    // ─────────────────────── SEARCH ───────────────────────────────
+
+    @Override
+    public PaginationResponse<ResourceFileResponse> search(ResourceFileFilterRequest request) {
+        Pageable pageable = PaginationUtils.createPageable(
+                request.getPageNo(), request.getPageSize(),
+                request.getSortBy(), request.getSortDirection());
+
+        String search = request.getSearch() == null ? "" : request.getSearch().trim();
+
+        Page<ResourceFile> page = resourceFileRepository.search(
+                search,
+                request.getApplicationName(),
+                request.getResourceId(),
+                request.getFileType(),
+                request.getStatus(),
+                pageable);
+
+        return PaginationResponse.<ResourceFileResponse>builder()
+                .content(page.getContent().stream().map(resourceFileMapper::toResponse).toList())
+                .pageNo(page.getNumber() + 1)
+                .pageSize(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .first(page.isFirst())
+                .last(page.isLast())
+                .hasNext(page.hasNext())
+                .hasPrevious(page.hasPrevious())
+                .build();
+    }
 
     // ─────────────────────── UPLOAD ───────────────────────────────
 
