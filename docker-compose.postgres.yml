@@ -9,7 +9,7 @@ services:
     container_name: postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: notification_service
+      POSTGRES_DB: resource_service
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: Hour1819
     ports:
@@ -17,7 +17,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d notification_service"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d resource_service"]
       interval: 10s
       timeout: 5s
       retries: 5
