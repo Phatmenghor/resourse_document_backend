@@ -100,3 +100,18 @@ management:
     web:
       exposure:
         include: health,info,metrics
+
+# ── Logging ──
+logging:
+  level:
+    # Suppress noisy Kafka internals (rebalance, offset reset, partition assignment)
+    org.apache.kafka.clients.consumer.internals: WARN
+    org.apache.kafka.clients.consumer: WARN
+    org.apache.kafka.clients.producer: WARN
+    org.apache.kafka.clients: WARN
+    org.apache.kafka.common: WARN
+    # Suppress Hibernate SQL constraint detail logs (keep app-level errors)
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: ERROR
+    # Suppress Spring Kafka listener verbose output
+    org.springframework.kafka.listener: WARN
+    org.springframework.kafka: WARN
