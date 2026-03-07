@@ -7,18 +7,23 @@
 services:
 
   app:
+    container_name: resource-service
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: resource-service
-    restart: unless-stopped
+
+    # Cache Maven dependencies across builds
+    volumes:
+      - maven_repo:/root/.m2
+      - /Users/shadow/Freelance/E_MENU/resourse_document_backend/storage:/app/storage
+
+    restart: always
+
     ports:
       - "6060:8080"
-    volumes:
-      - /Users/shadow/Freelance/E_MENU/resourse_document_backend/storage:/app/storage
-    networks:
-      - app-network
 
-networks:
-  app-network:
-    driver: bridge
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  maven_repo:

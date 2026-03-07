@@ -1,37 +1,37 @@
-# ─────────────────────────────────────────────
-# Stage 1 – Build
-# ─────────────────────────────────────────────
-FROM eclipse-temurin:21-jdk-alpine AS builder
+# =========================
+# Build stage
+# =========================
+FROM maven:3.9-eclipse-temurin-21 AS build
 
-WORKDIR /build
+WORKDIR /app
 
-# Copy Maven wrapper and pom first (layer-cache dependencies)
-COPY mvnw pom.xml ./
-COPY .mvn .mvn
+# Copy pom.xml first → cache dependencies
+COPY pom.xml .
 
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -q
+# Download dependencies (cached if pom.xml unchanged)
+RUN mvn dependency:go-offline -B
 
-# Copy source and build
+# Copy source code
 COPY src ./src
-RUN ./mvnw clean package -DskipTests -q
 
-# ─────────────────────────────────────────────
-# Stage 2 – Runtime
-# ─────────────────────────────────────────────
-FROM eclipse-temurin:21-jre-alpine
+# Build application
+RUN mvn clean package -DskipTests -T 1C
+
+
+# =========================
+# Runtime stage (small image)
+# =========================
+FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
 # Create storage directory
 RUN mkdir -p /app/storage
 
-# Copy the built JAR
-COPY --from=builder /build/target/*.jar app.jar
+COPY --from=build /app/target/*.jar app.jar
 
-# Expose application port
 EXPOSE 8080
 
-# Default active profile is prod; override via SPRING_PROFILES_ACTIVE env var
 ENV SPRING_PROFILES_ACTIVE=prod
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
