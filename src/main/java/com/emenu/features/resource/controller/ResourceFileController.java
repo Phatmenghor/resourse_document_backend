@@ -2,14 +2,12 @@ package com.emenu.features.resource.controller;
 
 import com.emenu.features.appkey.models.AppKey;
 import com.emenu.features.appkey.service.AppKeyService;
-import com.emenu.features.resource.dto.request.AppNameRequest;
 import com.emenu.features.resource.dto.request.DeleteBulkRequest;
-import com.emenu.features.resource.dto.request.ResourceIdRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadRequest;
-import com.emenu.features.resource.dto.response.ResourceCountResponse;
 import com.emenu.features.resource.dto.response.ResourceFileResponse;
 import com.emenu.features.resource.service.ResourceFileService;
 import com.emenu.shared.dto.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,7 +16,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -49,10 +46,10 @@ public class ResourceFileController {
                 .body(ApiResponse.success("File upload queued successfully", response));
     }
 
-    // ─────────────────────── GET ──────────────────────────────────
+    // ─────────────────────── GET / PREVIEW ────────────────────────
 
     /**
-     * Get metadata for a single file by UUID.
+     * Get file metadata by UUID.
      * GET /api/v1/resources/{id}
      */
     @GetMapping("/{id}")
@@ -62,30 +59,16 @@ public class ResourceFileController {
     }
 
     /**
-     * Preview / stream a file by its UUID.
-     * GET /api/v1/resources/preview/{id}
-     */
-    @GetMapping("/preview/{id}")
-    public ResponseEntity<byte[]> previewById(@PathVariable UUID id) {
-        ResourceFileResponse meta = resourceFileService.getById(id);
-        byte[] data = resourceFileService.preview(meta.getSource());
-        String contentType = meta.getMimeType() != null ? meta.getMimeType() : "application/octet-stream";
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
-                .body(data);
-    }
-
-    /**
-     * Preview / stream a file by its relative path (matches the previewUrl in the upload response).
+     * Stream a file using its source path from the upload response.
      * GET /api/v1/resources/preview/my-app/2026-03-07/07032026_abc123.jpg
      */
     @GetMapping("/preview/**")
-    public ResponseEntity<byte[]> previewByPath(jakarta.servlet.http.HttpServletRequest request) {
-        String fullPath  = request.getRequestURI();
-        String prefix    = "/api/v1/resources/preview/";
-        String filePath  = fullPath.substring(fullPath.indexOf(prefix) + prefix.length());
-        byte[] data      = resourceFileService.preview(filePath);
-        String mimeType  = resolveMimeFromPath(filePath);
+    public ResponseEntity<byte[]> previewByPath(HttpServletRequest request) {
+        String fullPath = request.getRequestURI();
+        String prefix   = "/api/v1/resources/preview/";
+        String filePath = fullPath.substring(fullPath.indexOf(prefix) + prefix.length());
+        byte[] data     = resourceFileService.preview(filePath);
+        String mimeType = resolveMimeFromPath(filePath);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(mimeType))
                 .body(data);
@@ -101,29 +84,6 @@ public class ResourceFileController {
         return "application/octet-stream";
     }
 
-    // ─────────────────────── LIST / COUNT ─────────────────────────
-
-    @PostMapping("/by-resource")
-    public ResponseEntity<ApiResponse<List<ResourceFileResponse>>> listByResourceId(
-            @Valid @RequestBody ResourceIdRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Resource files retrieved",
-                resourceFileService.listByResourceId(request.getResourceId())));
-    }
-
-    @PostMapping("/by-resource/count")
-    public ResponseEntity<ApiResponse<ResourceCountResponse>> countByResourceId(
-            @Valid @RequestBody ResourceIdRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("File count retrieved",
-                resourceFileService.countByResourceId(request.getResourceId())));
-    }
-
-    @PostMapping("/by-app/count")
-    public ResponseEntity<ApiResponse<ResourceCountResponse>> countByApp(
-            @Valid @RequestBody AppNameRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("File count retrieved",
-                resourceFileService.countByApplicationName(request.getApplicationName())));
-    }
-
     // ─────────────────────── DELETE ───────────────────────────────
 
     /**
@@ -137,9 +97,8 @@ public class ResourceFileController {
     }
 
     /**
-     * Bulk delete. Provide exactly one of: resourceId, applicationName, apiKey.
+     * Bulk delete — provide exactly one of: resourceId, applicationName, apiKey.
      * POST /api/v1/resources/delete-bulk
-     * Body: { "resourceId": "..." } OR { "applicationName": "..." } OR { "apiKey": "..." }
      */
     @PostMapping("/delete-bulk")
     public ResponseEntity<ApiResponse<Void>> deleteBulk(@RequestBody DeleteBulkRequest request) {

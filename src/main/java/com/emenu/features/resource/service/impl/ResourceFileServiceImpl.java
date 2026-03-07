@@ -6,7 +6,6 @@ import com.emenu.exception.custom.NotFoundException;
 import com.emenu.features.appkey.models.AppKey;
 import com.emenu.features.appkey.service.AppKeyService;
 import com.emenu.features.resource.dto.request.ResourceUploadRequest;
-import com.emenu.features.resource.dto.response.ResourceCountResponse;
 import com.emenu.features.resource.dto.response.ResourceFileResponse;
 import com.emenu.features.resource.kafka.event.ResourceDeleteEvent;
 import com.emenu.features.resource.kafka.event.ResourceUploadEvent;
@@ -33,7 +32,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -145,14 +143,6 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         return resourceFileMapper.toResponse(findActiveById(id));
     }
 
-    @Override
-    public List<ResourceFileResponse> listByResourceId(String resourceId) {
-        return resourceFileRepository.findByResourceIdAndIsDeletedFalse(resourceId)
-                .stream()
-                .map(resourceFileMapper::toResponse)
-                .collect(Collectors.toList());
-    }
-
     // ─────────────────────── DELETE ───────────────────────────────
 
     @Override
@@ -229,26 +219,6 @@ public class ResourceFileServiceImpl implements ResourceFileService {
 
         resourceFileProducer.sendDeleteEvent(event);
         log.info("Bulk soft-deleted {} files for applicationName: {}", files.size(), applicationName);
-    }
-
-    // ─────────────────────── COUNTS ───────────────────────────────
-
-    @Override
-    public ResourceCountResponse countByResourceId(String resourceId) {
-        long count = resourceFileRepository.countByResourceId(resourceId);
-        return ResourceCountResponse.builder()
-                .resourceId(resourceId)
-                .totalFiles(count)
-                .build();
-    }
-
-    @Override
-    public ResourceCountResponse countByApplicationName(String applicationName) {
-        long count = resourceFileRepository.countByApplicationName(applicationName);
-        return ResourceCountResponse.builder()
-                .applicationName(applicationName)
-                .totalFiles(count)
-                .build();
     }
 
     // ─────────────────────── MULTIPART UPLOAD ─────────────────────
