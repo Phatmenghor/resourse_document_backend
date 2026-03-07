@@ -31,7 +31,7 @@ public class ResourceFileController {
 
     /**
      * Upload a file via base64.
-     * Body: { "key": "...", "resourceId": "...(optional)", "mimeType": "image/jpeg", "base64": "..." }
+     * Body: { "key": "...", "resourceId": "...(optional)", "base64": "data:image/jpeg;base64,..." }
      */
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<ResourceFileResponse>> upload(

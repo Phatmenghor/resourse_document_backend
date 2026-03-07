@@ -63,18 +63,19 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         AppKey appKey = appKeyService.validateAndGetAppKey(request.getKey());
         String appName = appKey.getApplicationName();
 
-        // 2. Strip data URI prefix from base64 if present (e.g. "data:image/jpeg;base64,...")
-        String rawBase64 = stripBase64Prefix(request.getBase64());
+        // 2. Detect mimeType from data URI prefix, then strip it
+        String mimeType   = mimeTypeFromBase64(request.getBase64());
+        String rawBase64  = stripBase64Prefix(request.getBase64());
 
         // 3. Determine file type and build folder path
-        FileType fileType = resolveFileType(request.getMimeType());
-        LocalDate today = LocalDate.now();
+        FileType fileType = resolveFileType(mimeType);
+        LocalDate today   = LocalDate.now();
 
         // Folder structure: appName/yyyy-MM-dd/
         String folderPath = appName + "/" + today.format(FOLDER_DATE) + "/";
 
         // 4. Generate filename: ddMMyyyy_xxxxxxxx.ext  (e.g. 06032026_a1b2c3d4.jpg)
-        String extension = extensionFromMime(request.getMimeType());
+        String extension = extensionFromMime(mimeType);
         String shortId    = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         String physicalFileName = today.format(FILE_DATE) + "_" + shortId
                 + (extension.isEmpty() ? "" : "." + extension);
@@ -89,7 +90,7 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         ResourceFile resourceFile = new ResourceFile();
         resourceFile.setFileUuid(physicalFileName);
         resourceFile.setOriginalFileName(physicalFileName);
-        resourceFile.setMimeType(request.getMimeType());
+        resourceFile.setMimeType(mimeType);
         resourceFile.setFileType(fileType);
         resourceFile.setApplicationName(appName);
         resourceFile.setResourceId(request.getResourceId());
@@ -101,7 +102,7 @@ public class ResourceFileServiceImpl implements ResourceFileService {
 
         ResourceFile saved = resourceFileRepository.save(resourceFile);
 
-        // 6. Send Kafka event for async processing (actual disk write happens in consumer)
+        // 7. Send Kafka event for async processing (actual disk write happens in consumer)
         ResourceUploadEvent event = ResourceUploadEvent.builder()
                 .resourceFileId(saved.getId().toString())
                 .applicationName(appName)
@@ -109,7 +110,7 @@ public class ResourceFileServiceImpl implements ResourceFileService {
                 .fileUuid(physicalFileName)
                 .folderPath(folderPath)
                 .filePath(filePath)
-                .mimeType(request.getMimeType())
+                .mimeType(mimeType)
                 .originalFileName(physicalFileName)
                 .base64Data(rawBase64)
                 .build();
@@ -355,6 +356,13 @@ public class ResourceFileServiceImpl implements ResourceFileService {
             case "video/mp4"                 -> "mp4";
             default -> "";
         };
+    }
+
+    private String mimeTypeFromBase64(String base64) {
+        if (base64 != null && base64.startsWith("data:") && base64.contains(";base64,")) {
+            return base64.substring(5, base64.indexOf(';'));
+        }
+        return "application/octet-stream";
     }
 
     private String stripBase64Prefix(String base64) {

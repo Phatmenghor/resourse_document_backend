@@ -12,12 +12,10 @@ public class ResourceUploadRequest {
     /** Optional — may be null if the file is not tied to a specific resource. */
     private String resourceId;
 
-    /** Optional — used to determine file extension if provided. */
-    private String mimeType;
-
     /**
      * Base64 encoded file content. May optionally include the data URI prefix
      * (e.g. "data:image/jpeg;base64,..."), which will be stripped automatically.
+     * MIME type is detected from the prefix when present.
      */
     @NotBlank(message = "Base64 file data is required")
     private String base64;
