@@ -5,9 +5,6 @@ spring:
     active: dev
 
   datasource:
-    url: jdbc:postgresql://192.168.103.106:5432/notification_service
-    username: postgres
-    password: "123cp!@#"
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -25,8 +22,6 @@ spring:
   # Redis
   data:
     redis:
-      host: localhost
-      port: 6379
       timeout: 2000ms
 
   # Multipart file upload size limits
@@ -37,7 +32,6 @@ spring:
 
   # Kafka Configuration
   kafka:
-    bootstrap-servers: localhost:9092
     consumer:
       group-id: notification-gateway-group
       auto-offset-reset: earliest
