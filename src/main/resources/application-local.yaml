@@ -1,4 +1,8 @@
-# Local profile — PostgreSQL running via docker-compose.infra.yml
+# ─────────────────────────────────────────────────────────────
+#  Local profile — IntelliJ on Mac/PC
+#  PostgreSQL: docker compose -f docker-compose.postgres.yml up -d
+#  Kafka+Redis: docker compose -f docker-compose.infra.yml up -d
+# ─────────────────────────────────────────────────────────────
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/notification_service

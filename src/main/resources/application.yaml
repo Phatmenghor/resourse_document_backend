@@ -4,6 +4,7 @@ spring:
   profiles:
     active: dev
 
+  # ── Shared datasource (connection pool only — url/user/pass in profile) ──
   datasource:
     driver-class-name: org.postgresql.Driver
     hikari:
@@ -19,18 +20,18 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
-  # Redis
+  # ── Redis (host/port in profile) ──
   data:
     redis:
       timeout: 2000ms
 
-  # Multipart file upload size limits
+  # ── Multipart limits ──
   servlet:
     multipart:
       max-file-size: 50MB
       max-request-size: 55MB
 
-  # Kafka Configuration
+  # ── Kafka shared settings (bootstrap-servers in profile) ──
   kafka:
     consumer:
       group-id: notification-gateway-group
@@ -39,20 +40,30 @@ spring:
     producer:
       acks: all
       retries: 3
-    # Allow large payloads (50 MB) for file uploads
     properties:
       max.request.size: 52428800
       message.max.bytes: 52428800
       fetch.message.max.bytes: 52428800
 
+# ── Server ──
 server:
   port: 8080
 
+# ── JWT ──
 jwt:
   secret: da2bd42bef8f9f957d647ed13571dadd5b59c7055fb723eacdb05154878da17d77d3180385fc232cab38bded0fc7dbda0d439cc275e91164ade266d64d50633bc7
   expiration: 99999999999999999
 
-# Notification Gateway Configuration
+# ── App init ──
+app:
+  name: "Notification Gateway Service"
+  version: "1.0.0"
+  init:
+    create-admin: true
+    admin-email: "phatmenghor19@gmail.com"
+    admin-password: "88889999"
+
+# ── Notification Gateway ──
 notification:
   gateway:
     enabled: true
@@ -68,19 +79,8 @@ notification:
   email:
     timeout: 10000
 
-app:
-  name: "Notification Gateway Service"
-  version: "1.0.0"
-  init:
-    create-admin: true
-    admin-email: "phatmenghor19@gmail.com"
-    admin-password: "88889999"
-
-# Resource File Storage
+# ── Resource Kafka topics (base-path/base-url in profile) ──
 resource:
-  storage:
-    base-path: ./storage
-    base-url: http://localhost:6060
   kafka:
     topics:
       upload: resource-file-upload
@@ -88,11 +88,13 @@ resource:
     consumer:
       group-id: resource-file-group
 
+# ── Swagger ──
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
     enabled: true
 
+# ── Actuator ──
 management:
   endpoints:
     web:
