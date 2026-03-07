@@ -1,10 +1,11 @@
 package com.emenu.features.resource.controller;
 
-import com.emenu.features.resource.dto.request.AppNameRequest;
+import com.emenu.features.resource.dto.request.ResourceTrackerFilterRequest;
 import com.emenu.features.resource.dto.request.StaleTrackerRequest;
 import com.emenu.features.resource.dto.response.ResourceTrackerResponse;
 import com.emenu.features.resource.service.ResourceTrackerService;
 import com.emenu.shared.dto.ApiResponse;
+import com.emenu.shared.dto.PaginationResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,15 +21,24 @@ public class ResourceTrackerController {
     private final ResourceTrackerService resourceTrackerService;
 
     /**
-     * List all resourceIds tracked under a given application.
-     * Shows firstUsedAt and lastUsedAt for each resourceId.
+     * Paginated search with optional filters.
+     * Supports filtering by applicationName, resourceId, and a general search
+     * that matches against both applicationName and resourceId.
      *
-     * Body: { "applicationName": "my-app" }
+     * Body: {
+     *   "search": "my-app",         // optional: searches applicationName & resourceId
+     *   "applicationName": "my-app", // optional: exact match
+     *   "resourceId": "img-001",     // optional: exact match
+     *   "pageNo": 1,
+     *   "pageSize": 15,
+     *   "sortBy": "createdAt",
+     *   "sortDirection": "DESC"
+     * }
      */
-    @PostMapping("/by-app")
-    public ResponseEntity<ApiResponse<List<ResourceTrackerResponse>>> listByApp(
-            @Valid @RequestBody AppNameRequest request) {
-        List<ResourceTrackerResponse> response = resourceTrackerService.listByApplicationName(request.getApplicationName());
+    @PostMapping("/search")
+    public ResponseEntity<ApiResponse<PaginationResponse<ResourceTrackerResponse>>> search(
+            @Valid @RequestBody ResourceTrackerFilterRequest request) {
+        PaginationResponse<ResourceTrackerResponse> response = resourceTrackerService.search(request);
         return ResponseEntity.ok(ApiResponse.success("Resource trackers retrieved", response));
     }
 

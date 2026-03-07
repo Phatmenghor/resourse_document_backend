@@ -1,12 +1,17 @@
 package com.emenu.features.resource.service.impl;
 
+import com.emenu.features.resource.dto.request.ResourceTrackerFilterRequest;
 import com.emenu.features.resource.dto.response.ResourceTrackerResponse;
 import com.emenu.features.resource.models.ResourceTracker;
 import com.emenu.features.resource.repository.ResourceTrackerRepository;
 import com.emenu.features.resource.service.ResourceTrackerService;
+import com.emenu.shared.dto.PaginationResponse;
+import com.emenu.shared.pagination.PaginationUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -30,14 +35,12 @@ public class ResourceTrackerServiceImpl implements ResourceTrackerService {
                 resourceTrackerRepository.findByApplicationNameAndResourceId(applicationName, resourceId);
 
         if (existing.isPresent()) {
-            // Already tracked — just refresh lastUsedAt
             ResourceTracker tracker = existing.get();
             tracker.setLastUsedAt(today);
             ResourceTracker saved = resourceTrackerRepository.save(tracker);
             log.info("ResourceTracker updated lastUsedAt={} | app={} | resourceId={}", today, applicationName, resourceId);
             return saved.getId();
         } else {
-            // First time this resourceId is used under this application
             ResourceTracker tracker = new ResourceTracker();
             tracker.setApplicationName(applicationName);
             tracker.setResourceId(resourceId);
@@ -50,11 +53,28 @@ public class ResourceTrackerServiceImpl implements ResourceTrackerService {
     }
 
     @Override
-    public List<ResourceTrackerResponse> listByApplicationName(String applicationName) {
-        return resourceTrackerRepository.findByApplicationName(applicationName)
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+    public PaginationResponse<ResourceTrackerResponse> search(ResourceTrackerFilterRequest request) {
+        Pageable pageable = PaginationUtils.createPageable(
+                request.getPageNo(), request.getPageSize(),
+                request.getSortBy(), request.getSortDirection());
+
+        String search = request.getSearch() == null ? "" : request.getSearch().trim();
+        String applicationName = request.getApplicationName();
+        String resourceId = request.getResourceId();
+
+        Page<ResourceTracker> page = resourceTrackerRepository.search(search, applicationName, resourceId, pageable);
+
+        return PaginationResponse.<ResourceTrackerResponse>builder()
+                .content(page.getContent().stream().map(this::toResponse).toList())
+                .pageNo(page.getNumber() + 1)
+                .pageSize(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .first(page.isFirst())
+                .last(page.isLast())
+                .hasNext(page.hasNext())
+                .hasPrevious(page.hasPrevious())
+                .build();
     }
 
     @Override

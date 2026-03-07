@@ -1,6 +1,8 @@
 package com.emenu.features.resource.service;
 
+import com.emenu.features.resource.dto.request.ResourceTrackerFilterRequest;
 import com.emenu.features.resource.dto.response.ResourceTrackerResponse;
+import com.emenu.shared.dto.PaginationResponse;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -16,8 +18,8 @@ public interface ResourceTrackerService {
      */
     java.util.UUID upsert(String applicationName, String resourceId);
 
-    /** All tracked resourceIds for an application. */
-    List<ResourceTrackerResponse> listByApplicationName(String applicationName);
+    /** Paginated search with optional filters: search, applicationName, resourceId. */
+    PaginationResponse<ResourceTrackerResponse> search(ResourceTrackerFilterRequest request);
 
     /**
      * Return resourceIds whose lastUsedAt is strictly before {@code before}.
