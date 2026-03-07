@@ -5,9 +5,9 @@
 # ─────────────────────────────────────────────────────────────
 spring:
   datasource:
-    url: jdbc:postgresql://192.168.103.106:5432/resource_service
+    url: jdbc:postgresql://localhost:5432/resource_service
     username: postgres
-    password: "123cp!@#"
+    password: "Hour1819"
 
   data:
     redis:
