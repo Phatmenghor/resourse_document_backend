@@ -5,17 +5,17 @@
 # ─────────────────────────────────────────────────────────────
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/resource_service
+    url: jdbc:postgresql://host.docker.internal:5432/resource_service
     username: postgres
     password: "Hour1819"
 
   data:
     redis:
-      host: redis
+      host: host.docker.internal
       port: 6379
 
   kafka:
-    bootstrap-servers: kafka:29092
+    bootstrap-servers: host.docker.internal:9092
 
 resource:
   storage:
