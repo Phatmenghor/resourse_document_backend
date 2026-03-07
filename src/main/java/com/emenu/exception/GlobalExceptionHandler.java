@@ -142,6 +142,36 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ApiResponse<Object>> handleUnauthorizedException(
+            UnauthorizedException ex, HttpServletRequest request) {
+        log.warn("Unauthorized access to {}: {}", request.getRequestURI(), ex.getMessage());
+
+        Map<String, Object> errorDetails = createErrorDetails(ErrorCodes.UNAUTHORIZED, request);
+        ApiResponse<Object> response = new ApiResponse<>("error", ex.getMessage(), errorDetails);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+    @ExceptionHandler(AlreadyExistsException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAlreadyExistsException(
+            AlreadyExistsException ex, HttpServletRequest request) {
+        log.warn("Conflict at {}: {}", request.getRequestURI(), ex.getMessage());
+
+        Map<String, Object> errorDetails = createErrorDetails(ErrorCodes.ALREADY_EXISTS, request);
+        ApiResponse<Object> response = new ApiResponse<>("error", ex.getMessage(), errorDetails);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIllegalStateException(
+            IllegalStateException ex, HttpServletRequest request) {
+        log.warn("Illegal state at {}: {}", request.getRequestURI(), ex.getMessage());
+
+        Map<String, Object> errorDetails = createErrorDetails(ErrorCodes.CONFLICT, request);
+        ApiResponse<Object> response = new ApiResponse<>("error", ex.getMessage(), errorDetails);
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Object>> handleAccessDeniedException(
             AccessDeniedException ex, HttpServletRequest request) {
@@ -149,8 +179,8 @@ public class GlobalExceptionHandler {
 
         Map<String, Object> errorDetails = createErrorDetails(ErrorCodes.INSUFFICIENT_PERMISSIONS, request);
         errorDetails.put("requiredAction", "Ensure you have the necessary permissions");
-        
-        ApiResponse<Object> response = new ApiResponse<>("error", 
+
+        ApiResponse<Object> response = new ApiResponse<>("error",
             "Access denied. You don't have permission to perform this action.", errorDetails);
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
@@ -229,38 +259,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleRuntimeException(RuntimeException ex, HttpServletRequest request) {
         log.error("Runtime exception in request to {}: {}", request.getRequestURI(), ex.getMessage(), ex);
 
-        String message = "An unexpected error occurred while processing your request.";
+        String message = ex.getMessage() != null ? ex.getMessage() : "An unexpected error occurred.";
         Map<String, Object> errorDetails = createErrorDetails(ErrorCodes.INTERNAL_SERVER_ERROR, request);
-
-        // ✅ ENHANCED: Better error message parsing
-        if (ex.getMessage() != null) {
-            String exMessage = ex.getMessage().toLowerCase();
-            if (exMessage.contains("subdomain")) {
-                if (exMessage.contains("already taken") || exMessage.contains("not available")) {
-                    message = "The subdomain you chose is not available. Please select a different subdomain.";
-                    errorDetails.put("field", "subdomain");
-                    errorDetails.put("type", "duplicate");
-                } else if (exMessage.contains("invalid") || exMessage.contains("format")) {
-                    message = "Invalid subdomain format. Please use only lowercase letters, numbers, and hyphens.";
-                    errorDetails.put("field", "subdomain");
-                    errorDetails.put("type", "format");
-                }
-            } else if (exMessage.contains("business name")) {
-                message = "The business name you chose is not available. Please select a different name.";
-                errorDetails.put("field", "businessName");
-                errorDetails.put("type", "duplicate");
-            } else if (exMessage.contains("email")) {
-                message = "The email address is already in use. Please use a different email.";
-                errorDetails.put("field", "email");
-                errorDetails.put("type", "duplicate");
-            } else if (exMessage.contains("timeout")) {
-                message = "The request timed out. Please try again.";
-            } else if (exMessage.contains("connection")) {
-                message = "A connection error occurred. Please try again later.";
-            } else if (exMessage.contains("not found")) {
-                message = "The requested resource could not be found.";
-            }
-        }
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse<>("error", message, errorDetails));

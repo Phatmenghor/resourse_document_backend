@@ -27,6 +27,10 @@ public class ErrorCodes {
     // Authorization errors
     public static final String INSUFFICIENT_PERMISSIONS = "INSUFFICIENT_PERMISSIONS";
     public static final String ACCESS_DENIED = "ACCESS_DENIED";
+    public static final String UNAUTHORIZED = "UNAUTHORIZED";
+    public static final String ALREADY_EXISTS = "ALREADY_EXISTS";
+    public static final String CONFLICT = "CONFLICT";
+    public static final String NOT_FOUND = "NOT_FOUND";
     
     // Business related errors
     public static final String BUSINESS_NOT_FOUND = "BUSINESS_NOT_FOUND";
