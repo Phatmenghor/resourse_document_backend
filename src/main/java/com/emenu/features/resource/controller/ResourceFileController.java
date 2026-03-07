@@ -96,12 +96,16 @@ public class ResourceFileController {
     // ─────────────────────── DELETE ───────────────────────────────
 
     /**
-     * Delete a single file by filename (e.g. 07032026_d093324b.jpg).
-     * DELETE /api/v1/resources/{filename}
+     * Delete a single file by its full source path.
+     * DELETE /api/v1/resources/my-app/2026-03-07/07032026_58ff60e2.jpg
      */
-    @DeleteMapping("/{filename}")
-    public ResponseEntity<ApiResponse<Void>> deleteByFilename(@PathVariable String filename) {
-        resourceFileService.deleteByFilename(filename);
+    @DeleteMapping("/{appName}/{date}/{filename}")
+    public ResponseEntity<ApiResponse<Void>> deleteByPath(
+            @PathVariable String appName,
+            @PathVariable String date,
+            @PathVariable String filename) {
+        String filePath = appName + "/" + date + "/" + filename;
+        resourceFileService.deleteByFilePath(filePath);
         return ResponseEntity.ok(ApiResponse.success("File deleted successfully", null));
     }
 

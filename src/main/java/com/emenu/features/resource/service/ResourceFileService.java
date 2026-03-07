@@ -36,9 +36,9 @@ public interface ResourceFileService {
     byte[] preview(String filePath);
 
     /**
-     * Delete a single file by filename (e.g. 07032026_d093324b.jpg).
+     * Delete a single file by its full source path (e.g. my-app/2026-03-07/07032026_58ff60e2.jpg).
      */
-    void deleteByFilename(String filename);
+    void deleteByFilePath(String filePath);
 
     /**
      * Bulk-delete all files that belong to a resourceId (e.g. when a business stops service).

@@ -139,9 +139,9 @@ public class ResourceFileServiceImpl implements ResourceFileService {
 
     @Override
     @Transactional
-    public void deleteByFilename(String filename) {
-        ResourceFile resourceFile = resourceFileRepository.findByFileUuidAndIsDeletedFalse(filename)
-                .orElseThrow(() -> new NotFoundException("File not found: " + filename));
+    public void deleteByFilePath(String filePath) {
+        ResourceFile resourceFile = resourceFileRepository.findByFilePathAndIsDeletedFalse(filePath)
+                .orElseThrow(() -> new NotFoundException("File not found: " + filePath));
         resourceFile.softDelete();
         resourceFileRepository.save(resourceFile);
 
@@ -152,7 +152,7 @@ public class ResourceFileServiceImpl implements ResourceFileService {
                 .build();
 
         resourceFileProducer.sendDeleteEvent(event);
-        log.info("Soft-deleted and queued physical deletion for file: {}", filename);
+        log.info("Soft-deleted and queued physical deletion for file: {}", filePath);
     }
 
     @Override

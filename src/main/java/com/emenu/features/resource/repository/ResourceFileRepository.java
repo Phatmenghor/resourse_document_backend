@@ -17,8 +17,6 @@ public interface ResourceFileRepository extends JpaRepository<ResourceFile, UUID
 
     Optional<ResourceFile> findByFilePathAndIsDeletedFalse(String filePath);
 
-    Optional<ResourceFile> findByFileUuidAndIsDeletedFalse(String fileUuid);
-
     List<ResourceFile> findByResourceIdAndIsDeletedFalse(String resourceId);
 
     List<ResourceFile> findByApplicationNameAndIsDeletedFalse(String applicationName);
