@@ -36,9 +36,9 @@ public interface ResourceFileService {
     byte[] preview(String filePath);
 
     /**
-     * Delete a single file by ID (soft-delete metadata + schedule physical file removal via Kafka).
+     * Delete a single file by filename (e.g. 07032026_d093324b.jpg).
      */
-    void deleteById(UUID id);
+    void deleteByFilename(String filename);
 
     /**
      * Bulk-delete all files that belong to a resourceId (e.g. when a business stops service).

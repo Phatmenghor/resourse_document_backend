@@ -20,7 +20,6 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -140,13 +139,12 @@ public class ResourceFileServiceImpl implements ResourceFileService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "resource-files", key = "#id")
-    public void deleteById(UUID id) {
-        ResourceFile resourceFile = findActiveById(id);
+    public void deleteByFilename(String filename) {
+        ResourceFile resourceFile = resourceFileRepository.findByFileUuidAndIsDeletedFalse(filename)
+                .orElseThrow(() -> new NotFoundException("File not found: " + filename));
         resourceFile.softDelete();
         resourceFileRepository.save(resourceFile);
 
-        // Schedule physical file removal via Kafka
         ResourceDeleteEvent event = ResourceDeleteEvent.builder()
                 .filePaths(List.of(resourceFile.getFilePath()))
                 .resourceId(resourceFile.getResourceId())
@@ -154,7 +152,7 @@ public class ResourceFileServiceImpl implements ResourceFileService {
                 .build();
 
         resourceFileProducer.sendDeleteEvent(event);
-        log.info("Soft-deleted and queued physical deletion for file: {}", resourceFile.getFilePath());
+        log.info("Soft-deleted and queued physical deletion for file: {}", filename);
     }
 
     @Override
@@ -305,10 +303,6 @@ public class ResourceFileServiceImpl implements ResourceFileService {
 
     // ─────────────────────── HELPERS ──────────────────────────────
 
-    private ResourceFile findActiveById(UUID id) {
-        return resourceFileRepository.findByIdAndIsDeletedFalse(id)
-                .orElseThrow(() -> new NotFoundException("Resource file not found with id: " + id));
-    }
 
     private FileType resolveFileType(String mimeType) {
         if (mimeType != null && mimeType.startsWith("image/")) {

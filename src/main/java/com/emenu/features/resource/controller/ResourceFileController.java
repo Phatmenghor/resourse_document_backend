@@ -96,12 +96,12 @@ public class ResourceFileController {
     // ─────────────────────── DELETE ───────────────────────────────
 
     /**
-     * Delete a single file by UUID.
-     * DELETE /api/v1/resources/{id}
+     * Delete a single file by filename (e.g. 07032026_d093324b.jpg).
+     * DELETE /api/v1/resources/{filename}
      */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<Void>> deleteById(@PathVariable UUID id) {
-        resourceFileService.deleteById(id);
+    @DeleteMapping("/{filename}")
+    public ResponseEntity<ApiResponse<Void>> deleteByFilename(@PathVariable String filename) {
+        resourceFileService.deleteByFilename(filename);
         return ResponseEntity.ok(ApiResponse.success("File deleted successfully", null));
     }
 
