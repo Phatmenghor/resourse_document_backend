@@ -1,9 +1,9 @@
-# Local profile — fully local machine (PostgreSQL running on localhost)
+# Local profile — PostgreSQL running via docker-compose.infra.yml
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/notification_service
     username: postgres
-    password: "123cp!@#"
+    password: "Hour1819"
 
   data:
     redis:
@@ -16,4 +16,4 @@ spring:
 resource:
   storage:
     base-path: ./storage
-    base-url: http://localhost:6060
+    base-url: http://localhost:8080
