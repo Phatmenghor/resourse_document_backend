@@ -15,8 +15,7 @@ services:
     ports:
       - "6060:8080"
     volumes:
-      # Uploaded files persist on the host at ./storage
-      - ./storage:/app/storage
+      - /Users/shadow/Freelance/E_MENU/resourse_document_backend/storage:/app/storage
     networks:
       - app-network
 
