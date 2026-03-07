@@ -78,17 +78,13 @@ public class ResourceFileController {
     }
 
     /**
-     * Stream a file using its source path from the upload response.
-     * GET /api/v1/resources/preview/my-app/2026-03-07/07032026_abc123.jpg
+     * Stream a file using the source value from the upload response.
+     * GET /api/v1/resources/preview?source=my-app/2026-03-07/07032026_abc123.jpg
      */
-    @GetMapping("/preview/{appName}/{date}/{filename}")
-    public ResponseEntity<byte[]> previewByPath(
-            @PathVariable String appName,
-            @PathVariable String date,
-            @PathVariable String filename) {
-        String filePath = appName + "/" + date + "/" + filename;
-        byte[] data     = resourceFileService.preview(filePath);
-        String mimeType = resolveMimeFromPath(filePath);
+    @GetMapping("/preview")
+    public ResponseEntity<byte[]> previewBySource(@RequestParam String source) {
+        byte[] data     = resourceFileService.preview(source);
+        String mimeType = resolveMimeFromPath(source);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(mimeType))
                 .body(data);

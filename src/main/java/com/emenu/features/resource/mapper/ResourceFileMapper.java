@@ -16,6 +16,6 @@ public abstract class ResourceFileMapper {
     @Mapping(target = "source",     source = "filePath")
     @Mapping(target = "fileType",   expression = "java(resourceFile.getFileType() != null ? resourceFile.getFileType().name() : null)")
     @Mapping(target = "status",     expression = "java(resourceFile.getStatus() != null ? resourceFile.getStatus().name() : null)")
-    @Mapping(target = "previewUrl", expression = "java(baseUrl + \"/api/v1/resources/preview/\" + resourceFile.getFilePath())")
+    @Mapping(target = "previewUrl", expression = "java(baseUrl + \"/api/v1/resources/preview?source=\" + resourceFile.getFilePath())")
     public abstract ResourceFileResponse toResponse(ResourceFile resourceFile);
 }
