@@ -1,5 +1,6 @@
 package com.emenu.features.resource.service;
 
+import com.emenu.features.resource.dto.request.DeleteBulkRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadBatchRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadRequest;
 import com.emenu.features.resource.dto.response.ResourceFileResponse;
@@ -51,5 +52,10 @@ public interface ResourceFileService {
      * Soft-deletes all metadata records and schedules physical removal via Kafka.
      */
     void deleteAllByApplicationName(String applicationName);
+
+    /**
+     * Bulk-delete driven by request body — resolves target by apiKey, applicationName, or resourceId.
+     */
+    void deleteBulk(DeleteBulkRequest request);
 
 }

@@ -1,10 +1,10 @@
 package com.emenu.features.resource.service.impl;
 
 import com.emenu.enums.resource.FileStatus;
-import com.emenu.enums.resource.FileType;
 import com.emenu.exception.custom.NotFoundException;
 import com.emenu.features.appkey.models.AppKey;
 import com.emenu.features.appkey.service.AppKeyService;
+import com.emenu.features.resource.dto.request.DeleteBulkRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadBatchRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadRequest;
 import com.emenu.features.resource.dto.response.ResourceFileResponse;
@@ -16,15 +16,16 @@ import com.emenu.features.resource.models.ResourceFile;
 import com.emenu.features.resource.repository.ResourceFileRepository;
 import com.emenu.features.resource.service.ResourceFileService;
 import com.emenu.features.resource.service.ResourceTrackerService;
+import com.emenu.features.resource.utils.FileUtils;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -39,244 +40,85 @@ import java.util.stream.Collectors;
 public class ResourceFileServiceImpl implements ResourceFileService {
 
     private final ResourceFileRepository resourceFileRepository;
-    private final ResourceFileMapper resourceFileMapper;
-    private final AppKeyService appKeyService;
-    private final ResourceFileProducer resourceFileProducer;
+    private final ResourceFileMapper     resourceFileMapper;
+    private final AppKeyService          appKeyService;
+    private final ResourceFileProducer   resourceFileProducer;
     private final ResourceTrackerService resourceTrackerService;
 
     @Value("${resource.storage.base-path:/app/storage}")
     private String storagePath;
 
-    // Folder path keeps yyyy-MM-dd for directory organisation
-    private static final DateTimeFormatter FOLDER_DATE   = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    // Physical filename prefix: ddMMyyyy  e.g. 06032026
-    private static final DateTimeFormatter FILE_DATE     = DateTimeFormatter.ofPattern("ddMMyyyy");
+    private static final DateTimeFormatter FOLDER_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter FILE_DATE   = DateTimeFormatter.ofPattern("ddMMyyyy");
 
     // ─────────────────────── UPLOAD ───────────────────────────────
 
     @Override
     @Transactional
     public ResourceFileResponse upload(ResourceUploadRequest request) {
-        // 1. Validate API key → get application name
-        AppKey appKey = appKeyService.validateAndGetAppKey(request.getKey());
+        AppKey appKey  = appKeyService.validateAndGetAppKey(request.getKey());
         String appName = appKey.getApplicationName();
 
-        // 2. Detect mimeType from data URI prefix, then strip it
-        String mimeType   = mimeTypeFromBase64(request.getBase64());
-        String rawBase64  = stripBase64Prefix(request.getBase64());
+        String mimeType  = FileUtils.mimeTypeFromBase64(request.getBase64());
+        String rawBase64 = FileUtils.stripBase64Prefix(request.getBase64());
 
-        // 3. Determine file type and build folder path
-        FileType fileType = resolveFileType(mimeType);
         LocalDate today   = LocalDate.now();
-
-        // Folder structure: appName/yyyy-MM-dd/
         String folderPath = appName + "/" + today.format(FOLDER_DATE) + "/";
-
-        // 4. Generate filename: ddMMyyyy_xxxxxxxx.ext  (e.g. 06032026_a1b2c3d4.jpg)
-        String extension = extensionFromMime(mimeType);
+        String extension  = FileUtils.extensionFromMime(mimeType);
         String shortId    = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
-        String physicalFileName = today.format(FILE_DATE) + "_" + shortId
-                + (extension.isEmpty() ? "" : "." + extension);
-        String filePath = folderPath + physicalFileName;
+        String filename   = today.format(FILE_DATE) + "_" + shortId + (extension.isEmpty() ? "" : "." + extension);
+        String filePath   = folderPath + filename;
 
-        // 5. Upsert tracker: create or refresh lastUsedAt for this (appName, resourceId) pair
-        UUID trackerId = (request.getResourceId() != null && !request.getResourceId().isBlank())
-                ? resourceTrackerService.upsert(appName, request.getResourceId())
-                : null;
+        UUID trackerId = resolveTrackerId(appName, request.getResourceId());
+        ResourceFile saved = resourceFileRepository.save(
+                buildResourceFile(filename, mimeType, appName, request.getResourceId(), filePath, trackerId));
 
-        // 6. Persist metadata record with PENDING status (no file bytes in DB)
-        ResourceFile resourceFile = new ResourceFile();
-        resourceFile.setFileUuid(physicalFileName);
-        resourceFile.setMimeType(mimeType);
-        resourceFile.setFileType(fileType);
-        resourceFile.setApplicationName(appName);
-        resourceFile.setResourceId(request.getResourceId());
-        resourceFile.setFilePath(filePath);
-        resourceFile.setStatus(FileStatus.PENDING);
-        resourceFile.setResourceTrackerId(trackerId);
-
-        ResourceFile saved = resourceFileRepository.save(resourceFile);
-
-        // 7. Send Kafka event for async processing (actual disk write happens in consumer)
-        ResourceUploadEvent event = ResourceUploadEvent.builder()
+        resourceFileProducer.sendUploadEvent(ResourceUploadEvent.builder()
                 .resourceFileId(saved.getId().toString())
                 .applicationName(appName)
                 .resourceId(request.getResourceId())
-                .fileUuid(physicalFileName)
+                .fileUuid(filename)
                 .filePath(filePath)
                 .mimeType(mimeType)
                 .base64Data(rawBase64)
-                .build();
+                .build());
 
-        resourceFileProducer.sendUploadEvent(event);
-        log.info("Upload queued for file: {} | app: {} | resourceId: {}",
-                physicalFileName, appName, request.getResourceId());
-
+        log.info("Upload queued: {} | app: {} | resourceId: {}", filename, appName, request.getResourceId());
         return resourceFileMapper.toResponse(saved);
     }
 
-    // ─────────────────────── PREVIEW ──────────────────────────────
-
-    @Override
-    public byte[] preview(String filePath) {
-        ResourceFile resourceFile = resourceFileRepository.findByFilePathAndIsDeletedFalse(filePath)
-                .orElseThrow(() -> new NotFoundException("File not found: " + filePath));
-
-        if (resourceFile.getStatus() != FileStatus.COMPLETED) {
-            throw new IllegalStateException(
-                    "File is not ready yet. Current status: " + resourceFile.getStatus());
-        }
-
-        try {
-            return Files.readAllBytes(Paths.get(storagePath, filePath));
-        } catch (IOException e) {
-            log.error("Failed to read file: {} | error: {}", filePath, e.getMessage());
-            throw new NotFoundException("File not found on disk: " + filePath);
-        }
-    }
-
-    // ─────────────────────── DELETE ───────────────────────────────
-
     @Override
     @Transactional
-    public void deleteByFilePath(String filePath) {
-        ResourceFile resourceFile = resourceFileRepository.findByFilePathAndIsDeletedFalse(filePath)
-                .orElseThrow(() -> new NotFoundException("File not found: " + filePath));
-        resourceFile.softDelete();
-        resourceFileRepository.save(resourceFile);
-
-        ResourceDeleteEvent event = ResourceDeleteEvent.builder()
-                .filePaths(List.of(resourceFile.getFilePath()))
-                .resourceId(resourceFile.getResourceId())
-                .applicationName(resourceFile.getApplicationName())
-                .build();
-
-        resourceFileProducer.sendDeleteEvent(event);
-        log.info("Soft-deleted and queued physical deletion for file: {}", filePath);
-    }
-
-    @Override
-    @Transactional
-    public void deleteAllByResourceId(String resourceId) {
-        List<ResourceFile> files = resourceFileRepository.findByResourceIdAndIsDeletedFalse(resourceId);
-
-        if (files.isEmpty()) {
-            log.info("No active files found for resourceId: {}", resourceId);
-            return;
-        }
-
-        List<String> filePaths = files.stream()
-                .map(ResourceFile::getFilePath)
-                .collect(Collectors.toList());
-
-        // Bulk soft-delete all DB records
-        files.forEach(ResourceFile::softDelete);
-        resourceFileRepository.saveAll(files);
-
-        // Send one delete event with all paths — consumer handles physical removal
-        String appName = files.get(0).getApplicationName();
-        ResourceDeleteEvent event = ResourceDeleteEvent.builder()
-                .filePaths(filePaths)
-                .resourceId(resourceId)
-                .applicationName(appName)
-                .build();
-
-        resourceFileProducer.sendDeleteEvent(event);
-        log.info("Bulk soft-deleted {} files for resourceId: {}", files.size(), resourceId);
-    }
-
-    @Override
-    @Transactional
-    public void deleteAllByApplicationName(String applicationName) {
-        List<ResourceFile> files = resourceFileRepository.findByApplicationNameAndIsDeletedFalse(applicationName);
-
-        if (files.isEmpty()) {
-            log.info("No active files found for applicationName: {}", applicationName);
-            return;
-        }
-
-        List<String> filePaths = files.stream()
-                .map(ResourceFile::getFilePath)
-                .collect(Collectors.toList());
-
-        files.forEach(ResourceFile::softDelete);
-        resourceFileRepository.saveAll(files);
-
-        ResourceDeleteEvent event = ResourceDeleteEvent.builder()
-                .filePaths(filePaths)
-                .resourceId("bulk-app-delete")
-                .applicationName(applicationName)
-                .build();
-
-        resourceFileProducer.sendDeleteEvent(event);
-        log.info("Bulk soft-deleted {} files for applicationName: {}", files.size(), applicationName);
-    }
-
-    // ─────────────────────── MULTIPART UPLOAD ─────────────────────
-
-    @Override
-    @Transactional
-    public ResourceFileResponse uploadMultipart(String key, String resourceId,
-                                                org.springframework.web.multipart.MultipartFile file) {
-        AppKey appKey = appKeyService.validateAndGetAppKey(key);
+    public ResourceFileResponse uploadMultipart(String key, String resourceId, MultipartFile file) {
+        AppKey appKey  = appKeyService.validateAndGetAppKey(key);
         String appName = appKey.getApplicationName();
 
         String mimeType   = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
-        FileType fileType = resolveFileType(mimeType);
         LocalDate today   = LocalDate.now();
-        // Folder structure: appName/yyyy-MM-dd/
         String folderPath = appName + "/" + today.format(FOLDER_DATE) + "/";
+        String extension  = FileUtils.extensionFromMime(mimeType);
+        String shortId    = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        String filename   = today.format(FILE_DATE) + "_" + shortId + (extension.isEmpty() ? "" : "." + extension);
+        String filePath   = folderPath + filename;
 
-        String extension      = extensionFromMime(mimeType);
-        String shortId        = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
-        String physicalFileName = today.format(FILE_DATE) + "_" + shortId
-                + (extension.isEmpty() ? "" : "." + extension);
-        String filePath = folderPath + physicalFileName;
+        String base64Data = encodeToBase64(file);
+        UUID trackerId    = resolveTrackerId(appName, resourceId);
+        ResourceFile saved = resourceFileRepository.save(
+                buildResourceFile(filename, mimeType, appName, resourceId, filePath, trackerId));
 
-        // Upsert tracker: create or refresh lastUsedAt for this (appName, resourceId) pair
-        UUID trackerId = (resourceId != null && !resourceId.isBlank())
-                ? resourceTrackerService.upsert(appName, resourceId)
-                : null;
-
-        // Convert multipart bytes to base64 for Kafka event (consumer will write to disk)
-        String base64Data;
-        try {
-            base64Data = Base64.getEncoder().encodeToString(file.getBytes());
-        } catch (IOException e) {
-            log.error("Failed to read multipart file bytes: {}", e.getMessage());
-            throw new RuntimeException("Failed to read uploaded file: " + e.getMessage());
-        }
-
-        // Persist metadata with PENDING status — actual disk write happens in Kafka consumer
-        ResourceFile resourceFile = new ResourceFile();
-        resourceFile.setFileUuid(physicalFileName);
-        resourceFile.setMimeType(mimeType);
-        resourceFile.setFileType(fileType);
-        resourceFile.setApplicationName(appName);
-        resourceFile.setResourceId(resourceId);
-        resourceFile.setFilePath(filePath);
-        resourceFile.setResourceTrackerId(trackerId);
-        resourceFile.setStatus(FileStatus.PENDING);
-
-        ResourceFile saved = resourceFileRepository.save(resourceFile);
-
-        // Send Kafka event — consumer decodes base64 and writes file to disk
-        ResourceUploadEvent event = ResourceUploadEvent.builder()
+        resourceFileProducer.sendUploadEvent(ResourceUploadEvent.builder()
                 .resourceFileId(saved.getId().toString())
                 .applicationName(appName)
                 .resourceId(resourceId)
-                .fileUuid(physicalFileName)
+                .fileUuid(filename)
                 .filePath(filePath)
                 .mimeType(mimeType)
                 .base64Data(base64Data)
-                .build();
+                .build());
 
-        resourceFileProducer.sendUploadEvent(event);
-        log.info("Multipart upload queued via Kafka: {} | app: {} | resourceId: {}", physicalFileName, appName, resourceId);
+        log.info("Multipart upload queued: {} | app: {} | resourceId: {}", filename, appName, resourceId);
         return resourceFileMapper.toResponse(saved);
     }
-
-    // ─────────────────────── BATCH UPLOAD ─────────────────────────
 
     @Override
     @Transactional
@@ -294,54 +136,116 @@ public class ResourceFileServiceImpl implements ResourceFileService {
 
     @Override
     @Transactional
-    public List<ResourceFileResponse> uploadMultipartBatch(String key, String resourceId,
-                                                           List<org.springframework.web.multipart.MultipartFile> files) {
+    public List<ResourceFileResponse> uploadMultipartBatch(String key, String resourceId, List<MultipartFile> files) {
         return files.stream()
                 .map(file -> uploadMultipart(key, resourceId, file))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
     }
 
-    // ─────────────────────── HELPERS ──────────────────────────────
+    // ─────────────────────── PREVIEW ──────────────────────────────
 
+    @Override
+    public byte[] preview(String filePath) {
+        ResourceFile resourceFile = resourceFileRepository.findByFilePathAndIsDeletedFalse(filePath)
+                .orElseThrow(() -> new NotFoundException("File not found: " + filePath));
 
-    private FileType resolveFileType(String mimeType) {
-        if (mimeType != null && mimeType.startsWith("image/")) {
-            return FileType.IMAGE;
+        if (resourceFile.getStatus() != FileStatus.COMPLETED) {
+            throw new IllegalStateException("File is not ready yet. Status: " + resourceFile.getStatus());
         }
-        return FileType.DOCUMENT;
-    }
 
-    /** Derive file extension from MIME type (e.g. image/jpeg → jpg). */
-    private String extensionFromMime(String mimeType) {
-        if (mimeType == null) return "";
-        return switch (mimeType.toLowerCase()) {
-            case "image/jpeg"                -> "jpg";
-            case "image/png"                 -> "png";
-            case "image/gif"                 -> "gif";
-            case "image/webp"                -> "webp";
-            case "image/svg+xml"             -> "svg";
-            case "application/pdf"           -> "pdf";
-            case "application/msword"        -> "doc";
-            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "docx";
-            case "application/vnd.ms-excel"  -> "xls";
-            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"       -> "xlsx";
-            case "text/plain"                -> "txt";
-            case "video/mp4"                 -> "mp4";
-            default -> "";
-        };
-    }
-
-    private String mimeTypeFromBase64(String base64) {
-        if (base64 != null && base64.startsWith("data:") && base64.contains(";base64,")) {
-            return base64.substring(5, base64.indexOf(';'));
+        try {
+            return Files.readAllBytes(Paths.get(storagePath, filePath));
+        } catch (IOException e) {
+            log.error("Failed to read file: {} | error: {}", filePath, e.getMessage());
+            throw new NotFoundException("File not found on disk: " + filePath);
         }
-        return "application/octet-stream";
     }
 
-    private String stripBase64Prefix(String base64) {
-        if (base64 != null && base64.contains(",")) {
-            return base64.substring(base64.indexOf(',') + 1);
+    // ─────────────────────── DELETE ───────────────────────────────
+
+    @Override
+    @Transactional
+    public void deleteByFilePath(String filePath) {
+        ResourceFile resourceFile = resourceFileRepository.findByFilePathAndIsDeletedFalse(filePath)
+                .orElseThrow(() -> new NotFoundException("File not found: " + filePath));
+        softDeleteAndPublish(List.of(resourceFile), resourceFile.getResourceId(), resourceFile.getApplicationName());
+        log.info("Deleted file: {}", filePath);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAllByResourceId(String resourceId) {
+        List<ResourceFile> files = resourceFileRepository.findByResourceIdAndIsDeletedFalse(resourceId);
+        if (files.isEmpty()) { log.info("No active files for resourceId: {}", resourceId); return; }
+        softDeleteAndPublish(files, resourceId, files.get(0).getApplicationName());
+        log.info("Bulk deleted {} files for resourceId: {}", files.size(), resourceId);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAllByApplicationName(String applicationName) {
+        List<ResourceFile> files = resourceFileRepository.findByApplicationNameAndIsDeletedFalse(applicationName);
+        if (files.isEmpty()) { log.info("No active files for applicationName: {}", applicationName); return; }
+        softDeleteAndPublish(files, "bulk-app-delete", applicationName);
+        log.info("Bulk deleted {} files for applicationName: {}", files.size(), applicationName);
+    }
+
+    @Override
+    @Transactional
+    public void deleteBulk(DeleteBulkRequest request) {
+        if (hasText(request.getApiKey())) {
+            AppKey appKey = appKeyService.validateAndGetAppKey(request.getApiKey());
+            deleteAllByApplicationName(appKey.getApplicationName());
+        } else if (hasText(request.getApplicationName())) {
+            deleteAllByApplicationName(request.getApplicationName());
+        } else if (hasText(request.getResourceId())) {
+            deleteAllByResourceId(request.getResourceId());
+        } else {
+            throw new IllegalArgumentException("Provide one of: resourceId, applicationName, or apiKey");
         }
-        return base64;
+    }
+
+    // ─────────────────────── PRIVATE HELPERS ──────────────────────
+
+    private ResourceFile buildResourceFile(String filename, String mimeType, String appName,
+                                           String resourceId, String filePath, UUID trackerId) {
+        ResourceFile rf = new ResourceFile();
+        rf.setFileUuid(filename);
+        rf.setMimeType(mimeType);
+        rf.setFileType(FileUtils.resolveFileType(mimeType));
+        rf.setApplicationName(appName);
+        rf.setResourceId(resourceId);
+        rf.setFilePath(filePath);
+        rf.setStatus(FileStatus.PENDING);
+        rf.setResourceTrackerId(trackerId);
+        return rf;
+    }
+
+    private void softDeleteAndPublish(List<ResourceFile> files, String resourceId, String applicationName) {
+        files.forEach(ResourceFile::softDelete);
+        resourceFileRepository.saveAll(files);
+        List<String> paths = files.stream().map(ResourceFile::getFilePath).collect(Collectors.toList());
+        resourceFileProducer.sendDeleteEvent(ResourceDeleteEvent.builder()
+                .filePaths(paths)
+                .resourceId(resourceId)
+                .applicationName(applicationName)
+                .build());
+    }
+
+    private UUID resolveTrackerId(String appName, String resourceId) {
+        return hasText(resourceId) ? resourceTrackerService.upsert(appName, resourceId) : null;
+    }
+
+    private String encodeToBase64(MultipartFile file) {
+        try {
+            return Base64.getEncoder().encodeToString(file.getBytes());
+        } catch (IOException e) {
+            log.error("Failed to read multipart file bytes: {}", e.getMessage());
+            throw new RuntimeException("Failed to read uploaded file: " + e.getMessage());
+        }
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }
