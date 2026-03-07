@@ -69,10 +69,9 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         // 3. Determine file type and build folder path
         FileType fileType = resolveFileType(request.getMimeType());
         LocalDate today = LocalDate.now();
-        String subFolder = fileType == FileType.IMAGE ? "images" : "documents";
 
-        // Folder structure: appName/yyyy-MM-dd/images|documents/
-        String folderPath = appName + "/" + today.format(FOLDER_DATE) + "/" + subFolder + "/";
+        // Folder structure: appName/yyyy-MM-dd/
+        String folderPath = appName + "/" + today.format(FOLDER_DATE) + "/";
 
         // 4. Generate filename: ddMMyyyy_xxxxxxxx.ext  (e.g. 06032026_a1b2c3d4.jpg)
         String extension = extensionFromMime(request.getMimeType());
@@ -267,8 +266,8 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         String mimeType   = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
         FileType fileType = resolveFileType(mimeType);
         LocalDate today   = LocalDate.now();
-        String subFolder  = fileType == FileType.IMAGE ? "images" : "documents";
-        String folderPath = appName + "/" + today.format(FOLDER_DATE) + "/" + subFolder + "/";
+        // Folder structure: appName/yyyy-MM-dd/
+        String folderPath = appName + "/" + today.format(FOLDER_DATE) + "/";
 
         String extension      = extensionFromMime(mimeType);
         String shortId        = UUID.randomUUID().toString().replace("-", "").substring(0, 8);

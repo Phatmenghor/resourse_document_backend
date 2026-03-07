@@ -12,11 +12,7 @@ public class ResourceUploadRequest {
     /** Optional — may be null if the file is not tied to a specific resource. */
     private String resourceId;
 
-    /**
-     * MIME type of the file (e.g. "image/jpeg", "application/pdf").
-     * Used to determine file type and extension.
-     */
-    @NotBlank(message = "MIME type is required")
+    /** Optional — used to determine file extension if provided. */
     private String mimeType;
 
     /**
