@@ -52,7 +52,7 @@ public class ResourceFile extends BaseUUIDEntity {
     /**
      * Business/resource ID for grouping. Delete all files by this ID when business stops service.
      */
-    @Column(name = "resource_id", nullable = false)
+    @Column(name = "resource_id")
     private String resourceId;
 
     /**
