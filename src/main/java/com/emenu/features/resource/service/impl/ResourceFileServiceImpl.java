@@ -300,7 +300,7 @@ public class ResourceFileServiceImpl implements ResourceFileService {
                     single.setBase64(base64);
                     return upload(single);
                 })
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
     }
 
     @Override

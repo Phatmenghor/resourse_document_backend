@@ -34,7 +34,7 @@ public class ResourceTrackerServiceImpl implements ResourceTrackerService {
             ResourceTracker tracker = existing.get();
             tracker.setLastUsedAt(today);
             ResourceTracker saved = resourceTrackerRepository.save(tracker);
-            log.debug("ResourceTracker updated lastUsedAt={} | app={} | resourceId={}", today, applicationName, resourceId);
+            log.info("ResourceTracker updated lastUsedAt={} | app={} | resourceId={}", today, applicationName, resourceId);
             return saved.getId();
         } else {
             // First time this resourceId is used under this application
