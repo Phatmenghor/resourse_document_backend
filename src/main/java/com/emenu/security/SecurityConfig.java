@@ -58,7 +58,7 @@ public class SecurityConfig {
                         // Resource file endpoints – upload & preview use their own API key auth
                         .requestMatchers("/api/v1/resources/upload").permitAll()
                         .requestMatchers("/api/v1/resources/upload-multipart").permitAll()
-                        .requestMatchers("/api/v1/resources/*/preview").permitAll()
+                        .requestMatchers("/api/v1/resources/preview/**").permitAll()
                         .requestMatchers("/api/v1/resources/by-resource/**").permitAll()
 
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()

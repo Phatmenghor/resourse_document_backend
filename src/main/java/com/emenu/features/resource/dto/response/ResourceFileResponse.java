@@ -1,6 +1,5 @@
 package com.emenu.features.resource.dto.response;
 
-import com.emenu.enums.resource.FileStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,6 +17,5 @@ public class ResourceFileResponse {
     private UUID id;
     private String resourceId;
     private String previewUrl;
-    private FileStatus status;
     private LocalDateTime createdAt;
 }

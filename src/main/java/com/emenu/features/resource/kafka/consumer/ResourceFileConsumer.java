@@ -55,12 +55,10 @@ public class ResourceFileConsumer {
         resourceFileRepository.save(resourceFile);
 
         try {
-            Path folderAbsPath = Paths.get(storagePath, event.getFolderPath());
-            Files.createDirectories(folderAbsPath);
-
             byte[] fileBytes = Base64.getDecoder().decode(event.getBase64Data());
 
             Path fileAbsPath = Paths.get(storagePath, event.getFilePath());
+            Files.createDirectories(fileAbsPath.getParent());
             Files.write(fileAbsPath, fileBytes);
 
             resourceFile.setFileSize((long) fileBytes.length);

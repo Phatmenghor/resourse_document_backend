@@ -19,22 +19,18 @@ import java.util.UUID;
         @Index(name = "idx_resource_file_app_name", columnList = "application_name"),
         @Index(name = "idx_resource_file_status", columnList = "status"),
         @Index(name = "idx_resource_file_resource_id_deleted", columnList = "resource_id, is_deleted"),
-        @Index(name = "idx_resource_file_app_day",     columnList = "application_name, upload_day, is_deleted"),
-        @Index(name = "idx_resource_file_tracker_id",  columnList = "resource_tracker_id")
+        @Index(name = "idx_resource_file_app_day", columnList = "application_name, upload_day, is_deleted"),
+        @Index(name = "idx_resource_file_tracker_id", columnList = "resource_tracker_id"),
+        @Index(name = "idx_resource_file_file_path", columnList = "file_path")
 })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ResourceFile extends BaseUUIDEntity {
 
-    /**
-     * UUID used as the physical filename on disk (e.g. "550e8400-e29b-41d4-a716-446655440000.jpg")
-     */
+    /** Physical filename on disk (e.g. "07032026_a1b2c3d4.jpg") */
     @Column(name = "file_uuid", nullable = false, unique = true, length = 64)
     private String fileUuid;
-
-    @Column(name = "original_file_name", nullable = false)
-    private String originalFileName;
 
     @Column(name = "mime_type", nullable = false)
     private String mimeType;
@@ -43,33 +39,19 @@ public class ResourceFile extends BaseUUIDEntity {
     @Column(name = "file_type", nullable = false)
     private FileType fileType;
 
-    /**
-     * Application name derived from the API key (acts as top-level folder).
-     */
+    /** Application name derived from the API key (top-level folder). */
     @Column(name = "application_name", nullable = false)
     private String applicationName;
 
-    /**
-     * Business/resource ID for grouping. Delete all files by this ID when business stops service.
-     */
+    /** Resource/business ID for grouping. Null if not tied to a specific resource. */
     @Column(name = "resource_id")
     private String resourceId;
 
-    /**
-     * Upload date in yyyy-MM-dd format (second-level folder).
-     */
+    /** Upload date in yyyy-MM-dd format (second-level folder). */
     @Column(name = "upload_day", nullable = false, length = 10)
     private String uploadDay;
 
-    /**
-     * Relative folder path: applicationName/uploadDay/images/ or applicationName/uploadDay/documents/
-     */
-    @Column(name = "folder_path", nullable = false)
-    private String folderPath;
-
-    /**
-     * Full relative file path: folderPath + fileUuid + extension
-     */
+    /** Full relative file path: appName/yyyy-MM-dd/ddMMyyyy_xxxxxxxx.ext */
     @Column(name = "file_path", nullable = false)
     private String filePath;
 
@@ -83,10 +65,6 @@ public class ResourceFile extends BaseUUIDEntity {
     @Column(name = "error_message")
     private String errorMessage;
 
-    /**
-     * Foreign key to the ResourceTracker record for this (applicationName, resourceId) pair.
-     * Allows easy monitoring — join ResourceFile → ResourceTracker to see firstUsedAt / lastUsedAt.
-     */
     @Column(name = "resource_tracker_id", columnDefinition = "uuid")
     private UUID resourceTrackerId;
 }

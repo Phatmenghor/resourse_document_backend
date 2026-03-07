@@ -22,9 +22,9 @@ public interface ResourceFileService {
     ResourceFileResponse uploadMultipart(String key, String resourceId, MultipartFile file);
 
     /**
-     * Stream the file bytes back for preview/download.
+     * Stream the file bytes back for preview/download by relative file path.
      */
-    byte[] preview(UUID id);
+    byte[] preview(String filePath);
 
     /**
      * Get metadata for a single file.

@@ -89,13 +89,11 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         // 6. Persist metadata record with PENDING status (no file bytes in DB)
         ResourceFile resourceFile = new ResourceFile();
         resourceFile.setFileUuid(physicalFileName);
-        resourceFile.setOriginalFileName(physicalFileName);
         resourceFile.setMimeType(mimeType);
         resourceFile.setFileType(fileType);
         resourceFile.setApplicationName(appName);
         resourceFile.setResourceId(request.getResourceId());
         resourceFile.setUploadDay(today.format(FOLDER_DATE));
-        resourceFile.setFolderPath(folderPath);
         resourceFile.setFilePath(filePath);
         resourceFile.setStatus(FileStatus.PENDING);
         resourceFile.setResourceTrackerId(trackerId);
@@ -108,10 +106,8 @@ public class ResourceFileServiceImpl implements ResourceFileService {
                 .applicationName(appName)
                 .resourceId(request.getResourceId())
                 .fileUuid(physicalFileName)
-                .folderPath(folderPath)
                 .filePath(filePath)
                 .mimeType(mimeType)
-                .originalFileName(physicalFileName)
                 .base64Data(rawBase64)
                 .build();
 
@@ -125,8 +121,9 @@ public class ResourceFileServiceImpl implements ResourceFileService {
     // ─────────────────────── PREVIEW ──────────────────────────────
 
     @Override
-    public byte[] preview(UUID id) {
-        ResourceFile resourceFile = findActiveById(id);
+    public byte[] preview(String filePath) {
+        ResourceFile resourceFile = resourceFileRepository.findByFilePathAndIsDeletedFalse(filePath)
+                .orElseThrow(() -> new NotFoundException("File not found: " + filePath));
 
         if (resourceFile.getStatus() != FileStatus.COMPLETED) {
             throw new IllegalStateException(
@@ -134,10 +131,10 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         }
 
         try {
-            return Files.readAllBytes(Paths.get(storagePath, resourceFile.getFilePath()));
+            return Files.readAllBytes(Paths.get(storagePath, filePath));
         } catch (IOException e) {
-            log.error("Failed to read file: {} | error: {}", resourceFile.getFilePath(), e.getMessage());
-            throw new NotFoundException("File not found on disk: " + resourceFile.getFilePath());
+            log.error("Failed to read file: {} | error: {}", filePath, e.getMessage());
+            throw new NotFoundException("File not found on disk: " + filePath);
         }
     }
 
@@ -293,13 +290,11 @@ public class ResourceFileServiceImpl implements ResourceFileService {
         // Persist metadata with PENDING status — actual disk write happens in Kafka consumer
         ResourceFile resourceFile = new ResourceFile();
         resourceFile.setFileUuid(physicalFileName);
-        resourceFile.setOriginalFileName(file.getOriginalFilename() != null ? file.getOriginalFilename() : physicalFileName);
         resourceFile.setMimeType(mimeType);
         resourceFile.setFileType(fileType);
         resourceFile.setApplicationName(appName);
         resourceFile.setResourceId(resourceId);
         resourceFile.setUploadDay(today.format(FOLDER_DATE));
-        resourceFile.setFolderPath(folderPath);
         resourceFile.setFilePath(filePath);
         resourceFile.setResourceTrackerId(trackerId);
         resourceFile.setStatus(FileStatus.PENDING);
@@ -312,10 +307,8 @@ public class ResourceFileServiceImpl implements ResourceFileService {
                 .applicationName(appName)
                 .resourceId(resourceId)
                 .fileUuid(physicalFileName)
-                .folderPath(folderPath)
                 .filePath(filePath)
                 .mimeType(mimeType)
-                .originalFileName(resourceFile.getOriginalFileName())
                 .base64Data(base64Data)
                 .build();
 

@@ -56,15 +56,28 @@ public class ResourceFileController {
     }
 
     /**
-     * Preview / download a file.
-     * Body: { "id": "uuid" }
+     * Preview / download a file by its path.
+     * URL: GET /api/v1/resources/preview/{appName}/{date}/{filename}
+     * e.g. GET /api/v1/resources/preview/my-app/2026-03-07/07032026_a1b2c3d4.jpg
      */
-    @PostMapping("/preview")
-    public ResponseEntity<byte[]> preview(@Valid @RequestBody ResourceFileIdRequest request) {
-        ResourceFileResponse meta = resourceFileService.getById(request.getId());
-        byte[] data = resourceFileService.preview(request.getId());
+    @GetMapping("/preview/{appName}/{date}/{filename}")
+    public ResponseEntity<byte[]> preview(
+            @PathVariable String appName,
+            @PathVariable String date,
+            @PathVariable String filename) {
+        String filePath = appName + "/" + date + "/" + filename;
+        byte[] data = resourceFileService.preview(filePath);
+        String contentType = switch (filename.contains(".")
+                ? filename.substring(filename.lastIndexOf('.') + 1).toLowerCase() : "") {
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png"         -> "image/png";
+            case "gif"         -> "image/gif";
+            case "webp"        -> "image/webp";
+            case "pdf"         -> "application/pdf";
+            default            -> "application/octet-stream";
+        };
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(meta.getMimeType()))
+                .contentType(MediaType.parseMediaType(contentType))
                 .body(data);
     }
 
