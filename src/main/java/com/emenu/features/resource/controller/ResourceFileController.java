@@ -75,6 +75,32 @@ public class ResourceFileController {
                 .body(data);
     }
 
+    /**
+     * Preview / stream a file by its relative path (matches the previewUrl in the upload response).
+     * GET /api/v1/resources/preview/my-app/2026-03-07/07032026_abc123.jpg
+     */
+    @GetMapping("/preview/**")
+    public ResponseEntity<byte[]> previewByPath(jakarta.servlet.http.HttpServletRequest request) {
+        String fullPath  = request.getRequestURI();
+        String prefix    = "/api/v1/resources/preview/";
+        String filePath  = fullPath.substring(fullPath.indexOf(prefix) + prefix.length());
+        byte[] data      = resourceFileService.preview(filePath);
+        String mimeType  = resolveMimeFromPath(filePath);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(mimeType))
+                .body(data);
+    }
+
+    private String resolveMimeFromPath(String path) {
+        if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+        if (path.endsWith(".png"))  return "image/png";
+        if (path.endsWith(".gif"))  return "image/gif";
+        if (path.endsWith(".webp")) return "image/webp";
+        if (path.endsWith(".pdf"))  return "application/pdf";
+        if (path.endsWith(".mp4"))  return "video/mp4";
+        return "application/octet-stream";
+    }
+
     // ─────────────────────── LIST / COUNT ─────────────────────────
 
     @PostMapping("/by-resource")
