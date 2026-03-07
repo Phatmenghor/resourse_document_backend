@@ -2,7 +2,7 @@ spring:
   application:
     name: notification-service
   profiles:
-    active: dev
+    active: local
 
   # ── Shared datasource (connection pool only — url/user/pass in profile) ──
   datasource:
