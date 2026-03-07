@@ -62,8 +62,6 @@ public class KafkaConfig {
         // Allow larger messages to be fetched (up to 50 MB)
         config.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 52_428_800);
         config.put(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, 52_428_800);
-        config.put(JsonDeserializer.TRUSTED_PACKAGES, "com.emenu.*");
-        config.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, true);
         JsonDeserializer<Object> deserializer = new JsonDeserializer<>();
         deserializer.addTrustedPackages("com.emenu.*");
         deserializer.setUseTypeHeaders(true);
