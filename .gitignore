@@ -36,3 +36,6 @@ build/
 logs/
 *.log
 *.log.*
+
+### Local storage (do not push) ###
+storage/
