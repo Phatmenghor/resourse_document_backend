@@ -1,28 +1,8 @@
 # ─────────────────────────────────────────────────────────────
-#  Infrastructure services: PostgreSQL + Zookeeper + Kafka + Redis + Kafka UI
+#  Infrastructure services: Zookeeper + Kafka + Redis + Kafka UI
 #  Start with:  docker compose -f docker-compose.infra.yml up -d
 # ─────────────────────────────────────────────────────────────
 services:
-
-  postgres:
-    image: postgres:16-alpine
-    container_name: postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: notification_service
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Hour1819
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d notification_service"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -47,7 +27,6 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      # INTERNAL → container-to-container | EXTERNAL → host tools / IDE
       KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
@@ -87,8 +66,6 @@ services:
       - app-network
 
 volumes:
-  postgres-data:
-    driver: local
   redis-data:
     driver: local
 

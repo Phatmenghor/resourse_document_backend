@@ -1,0 +1,27 @@
+# ─────────────────────────────────────────────────────────────
+#  PostgreSQL only
+#  Start with:  docker compose -f docker-compose.postgres.yml up -d
+# ─────────────────────────────────────────────────────────────
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: notification_service
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Hour1819
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d notification_service"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+    driver: local
