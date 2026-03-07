@@ -2,9 +2,8 @@ package com.emenu.features.resource.controller;
 
 import com.emenu.features.appkey.models.AppKey;
 import com.emenu.features.appkey.service.AppKeyService;
-import com.emenu.features.resource.dto.request.ApiKeyRequest;
 import com.emenu.features.resource.dto.request.AppNameRequest;
-import com.emenu.features.resource.dto.request.ResourceFileIdRequest;
+import com.emenu.features.resource.dto.request.DeleteBulkRequest;
 import com.emenu.features.resource.dto.request.ResourceIdRequest;
 import com.emenu.features.resource.dto.request.ResourceUploadRequest;
 import com.emenu.features.resource.dto.response.ResourceCountResponse;
@@ -20,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/resources")
@@ -29,10 +29,8 @@ public class ResourceFileController {
     private final ResourceFileService resourceFileService;
     private final AppKeyService appKeyService;
 
-    /**
-     * Upload a file via base64.
-     * Body: { "key": "...", "resourceId": "...(optional)", "base64": "data:image/jpeg;base64,..." }
-     */
+    // ─────────────────────── UPLOAD ───────────────────────────────
+
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<ResourceFileResponse>> upload(
             @Valid @RequestBody ResourceUploadRequest request) {
@@ -41,10 +39,6 @@ public class ResourceFileController {
                 .body(ApiResponse.success("File upload queued successfully", response));
     }
 
-    /**
-     * Upload a file via multipart form.
-     * Form fields: key (text), resourceId (text, optional), file (binary)
-     */
     @PostMapping(value = "/upload-multipart", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ResourceFileResponse>> uploadMultipart(
             @RequestPart("key") String key,
@@ -55,123 +49,91 @@ public class ResourceFileController {
                 .body(ApiResponse.success("File upload queued successfully", response));
     }
 
+    // ─────────────────────── GET ──────────────────────────────────
+
     /**
-     * Preview / download a file by its path.
-     * URL: GET /api/v1/resources/preview/{appName}/{date}/{filename}
-     * e.g. GET /api/v1/resources/preview/my-app/2026-03-07/07032026_a1b2c3d4.jpg
+     * Get metadata for a single file by UUID.
+     * GET /api/v1/resources/{id}
      */
-    @GetMapping("/preview/{appName}/{date}/{filename}")
-    public ResponseEntity<byte[]> preview(
-            @PathVariable String appName,
-            @PathVariable String date,
-            @PathVariable String filename) {
-        String filePath = appName + "/" + date + "/" + filename;
-        byte[] data = resourceFileService.preview(filePath);
-        String contentType = switch (filename.contains(".")
-                ? filename.substring(filename.lastIndexOf('.') + 1).toLowerCase() : "") {
-            case "jpg", "jpeg" -> "image/jpeg";
-            case "png"         -> "image/png";
-            case "gif"         -> "image/gif";
-            case "webp"        -> "image/webp";
-            case "pdf"         -> "application/pdf";
-            default            -> "application/octet-stream";
-        };
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<ResourceFileResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success("Resource file retrieved",
+                resourceFileService.getById(id)));
+    }
+
+    /**
+     * Preview / stream a file by its UUID.
+     * GET /api/v1/resources/preview/{id}
+     */
+    @GetMapping("/preview/{id}")
+    public ResponseEntity<byte[]> previewById(@PathVariable UUID id) {
+        ResourceFileResponse meta = resourceFileService.getById(id);
+        byte[] data = resourceFileService.preview(meta.getSource());
+        String contentType = meta.getMimeType() != null ? meta.getMimeType() : "application/octet-stream";
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
                 .body(data);
     }
 
-    /**
-     * Get metadata for a single resource file.
-     * Body: { "id": "uuid" }
-     */
-    @PostMapping("/get")
-    public ResponseEntity<ApiResponse<ResourceFileResponse>> getById(
-            @Valid @RequestBody ResourceFileIdRequest request) {
-        ResourceFileResponse response = resourceFileService.getById(request.getId());
-        return ResponseEntity.ok(ApiResponse.success("Resource file retrieved", response));
-    }
+    // ─────────────────────── LIST / COUNT ─────────────────────────
 
-    /**
-     * List all files belonging to a resourceId.
-     * Body: { "resourceId": "..." }
-     */
     @PostMapping("/by-resource")
     public ResponseEntity<ApiResponse<List<ResourceFileResponse>>> listByResourceId(
             @Valid @RequestBody ResourceIdRequest request) {
-        List<ResourceFileResponse> response = resourceFileService.listByResourceId(request.getResourceId());
-        return ResponseEntity.ok(ApiResponse.success("Resource files retrieved", response));
+        return ResponseEntity.ok(ApiResponse.success("Resource files retrieved",
+                resourceFileService.listByResourceId(request.getResourceId())));
     }
 
-    /**
-     * Count files for a given resourceId.
-     * Body: { "resourceId": "..." }
-     */
     @PostMapping("/by-resource/count")
     public ResponseEntity<ApiResponse<ResourceCountResponse>> countByResourceId(
             @Valid @RequestBody ResourceIdRequest request) {
-        ResourceCountResponse response = resourceFileService.countByResourceId(request.getResourceId());
-        return ResponseEntity.ok(ApiResponse.success("File count retrieved", response));
+        return ResponseEntity.ok(ApiResponse.success("File count retrieved",
+                resourceFileService.countByResourceId(request.getResourceId())));
     }
 
-    /**
-     * Count files for a given application name.
-     * Body: { "applicationName": "..." }
-     */
     @PostMapping("/by-app/count")
     public ResponseEntity<ApiResponse<ResourceCountResponse>> countByApp(
             @Valid @RequestBody AppNameRequest request) {
-        ResourceCountResponse response = resourceFileService.countByApplicationName(request.getApplicationName());
-        return ResponseEntity.ok(ApiResponse.success("File count retrieved", response));
+        return ResponseEntity.ok(ApiResponse.success("File count retrieved",
+                resourceFileService.countByApplicationName(request.getApplicationName())));
     }
 
+    // ─────────────────────── DELETE ───────────────────────────────
+
     /**
-     * Delete a single file by ID.
-     * Body: { "id": "uuid" }
+     * Delete a single file by UUID.
+     * DELETE /api/v1/resources/{id}
      */
-    @PostMapping("/delete")
-    public ResponseEntity<ApiResponse<Void>> deleteById(
-            @Valid @RequestBody ResourceFileIdRequest request) {
-        resourceFileService.deleteById(request.getId());
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteById(@PathVariable UUID id) {
+        resourceFileService.deleteById(id);
         return ResponseEntity.ok(ApiResponse.success("File deleted successfully", null));
     }
 
     /**
-     * Bulk-delete all files for a resourceId.
-     * Body: { "resourceId": "..." }
+     * Bulk delete. Provide exactly one of: resourceId, applicationName, apiKey.
+     * POST /api/v1/resources/delete-bulk
+     * Body: { "resourceId": "..." } OR { "applicationName": "..." } OR { "apiKey": "..." }
      */
-    @PostMapping("/delete-by-resource")
-    public ResponseEntity<ApiResponse<Void>> deleteAllByResourceId(
-            @Valid @RequestBody ResourceIdRequest request) {
-        resourceFileService.deleteAllByResourceId(request.getResourceId());
-        return ResponseEntity.ok(
-                ApiResponse.success("All files for resourceId '" + request.getResourceId() + "' deleted", null));
-    }
-
-    /**
-     * Bulk-delete all files belonging to an application name.
-     * Body: { "applicationName": "..." }
-     */
-    @PostMapping("/delete-by-app")
-    public ResponseEntity<ApiResponse<Void>> deleteAllByApp(
-            @Valid @RequestBody AppNameRequest request) {
-        resourceFileService.deleteAllByApplicationName(request.getApplicationName());
-        return ResponseEntity.ok(
-                ApiResponse.success("All files for application '" + request.getApplicationName() + "' deleted", null));
-    }
-
-    /**
-     * Bulk-delete all files whose API key has been stopped/revoked.
-     * Looks up the applicationName from the key, then deletes all its files.
-     * Body: { "apiKey": "rk_abc123..." }
-     */
-    @PostMapping("/delete-by-api-key")
-    public ResponseEntity<ApiResponse<Void>> deleteAllByApiKey(
-            @Valid @RequestBody ApiKeyRequest request) {
-        AppKey appKey = appKeyService.validateAndGetAppKey(request.getApiKey());
-        resourceFileService.deleteAllByApplicationName(appKey.getApplicationName());
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        "All files for application '" + appKey.getApplicationName() + "' deleted", null));
+    @PostMapping("/delete-bulk")
+    public ResponseEntity<ApiResponse<Void>> deleteBulk(@RequestBody DeleteBulkRequest request) {
+        if (request.getApiKey() != null && !request.getApiKey().isBlank()) {
+            AppKey appKey = appKeyService.validateAndGetAppKey(request.getApiKey());
+            resourceFileService.deleteAllByApplicationName(appKey.getApplicationName());
+            return ResponseEntity.ok(ApiResponse.success(
+                    "All files for application '" + appKey.getApplicationName() + "' deleted", null));
+        }
+        if (request.getApplicationName() != null && !request.getApplicationName().isBlank()) {
+            resourceFileService.deleteAllByApplicationName(request.getApplicationName());
+            return ResponseEntity.ok(ApiResponse.success(
+                    "All files for application '" + request.getApplicationName() + "' deleted", null));
+        }
+        if (request.getResourceId() != null && !request.getResourceId().isBlank()) {
+            resourceFileService.deleteAllByResourceId(request.getResourceId());
+            return ResponseEntity.ok(ApiResponse.success(
+                    "All files for resourceId '" + request.getResourceId() + "' deleted", null));
+        }
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error("Provide one of: resourceId, applicationName, or apiKey"));
     }
 }
