@@ -1,12 +1,18 @@
 # ─────────────────────────────────────────────────────────────
 #  Prod profile — Docker container (production server)
 #  Start: docker compose -f docker-compose.app.yml up -d
+#  All logs stored in: /DATA/resource_center
 # ─────────────────────────────────────────────────────────────
 spring:
   datasource:
     url: jdbc:postgresql://host.docker.internal:5432/resource_service
     username: postgres
     password: "123cp!@#"
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      max-lifetime: 1800000
+      connection-timeout: 30000
 
   data:
     redis:
@@ -16,7 +22,22 @@ spring:
   kafka:
     bootstrap-servers: host.docker.internal:9092
 
+logging:
+  level:
+    root: INFO
+    com.emenu: INFO
+    com.emenu.performance: INFO
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.postgresql: WARN
+
 resource:
   storage:
     base-path: /app/storage
     base-url: http://localhost:6060
+
+# ─────────────────────────────────────────────────────────────
+# LOGGING CONFIGURATION - Logs stored in /DATA/resource_center
+# Files: app, error, performance, security, archive
+# ─────────────────────────────────────────────────────────────
+LOG_PATH: /DATA/resource_center

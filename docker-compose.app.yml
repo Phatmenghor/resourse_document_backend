@@ -2,6 +2,7 @@
 #  Application service — Spring Boot
 #  All config is read from application-{profile}.yaml (no env block).
 #  Container runs on port 8080, exposed to host on port 6060.
+#  Logs stored in: /DATA/resource_center (on host)
 #  Start with:  docker compose -f docker-compose.app.yml up -d --build
 # ─────────────────────────────────────────────────────────────
 services:
@@ -12,18 +13,55 @@ services:
       context: .
       dockerfile: Dockerfile
 
-    # Cache Maven dependencies across builds
+    # ═════════════════════════════════════════════════════════════
+    # VOLUME MOUNTS
+    # ═════════════════════════════════════════════════════════════
     volumes:
+      # Cache Maven dependencies across builds
       - maven_repo:/root/.m2
+
+      # Storage directory for files
       - /Users/shadow/Freelance/E_MENU/resourse_document_backend/storage:/app/storage
+
+      # ╔═════════════════════════════════════════════════════════╗
+      # ║ LOGGING VOLUMES                                         ║
+      # ║ All application logs are stored in /DATA/resource_center║
+      # ╚═════════════════════════════════════════════════════════╝
+      # Option 1: Mount /DATA/resource_center from host
+      - /DATA/resource_center:/DATA/resource_center
+
+      # Option 2: Use named volume (uncomment if preferred)
+      # - logs_data:/DATA/resource_center
 
     restart: always
 
     ports:
       - "6060:8080"
 
+    # ═════════════════════════════════════════════════════════════
+    # ENVIRONMENT VARIABLES
+    # ═════════════════════════════════════════════════════════════
+    environment:
+      LOG_PATH: /DATA/resource_center
+      SPRING_PROFILES_ACTIVE: prod
+
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+    # ═════════════════════════════════════════════════════════════
+    # LOGGING DRIVER CONFIGURATION
+    # ═════════════════════════════════════════════════════════════
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+        labels: "service=resource-service"
+
+# ═════════════════════════════════════════════════════════════════════
+# NAMED VOLUMES (Optional)
+# ═════════════════════════════════════════════════════════════════════
 volumes:
   maven_repo:
+  # Uncomment to use named volume for logs instead of host mount
+  # logs_data:

@@ -1,31 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <property name="LOG_PATH" value="logs" />
-    <property name="LOG_FILE_NAME" value="resourse_document" />
-    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" />
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- LOG PATH CONFIGURATION -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- Default to local logs, override via application-prod.yaml or docker env -->
+    <property name="LOG_PATH" value="${LOG_PATH:-logs}" />
+    <property name="LOG_FILE_NAME" value="resource_document" />
+
+    <!-- DETAILED LOG PATTERNS FOR MONITORING -->
+    <property name="LOG_PATTERN_DETAILED"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - [%method:%line] - %msg%n" />
+    <property name="LOG_PATTERN_CONSOLE"
+              value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{20} - %msg%n" />
+
+    <!-- ROLLING POLICY SETTINGS -->
     <property name="MAX_FILE_SIZE" value="512MB" />
+    <property name="MAX_HISTORY_DAYS" value="30" />
+    <property name="MAX_TOTAL_SIZE" value="10GB" />
+
     <timestamp key="byDay" datePattern="yyyy-MM-dd" />
 
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- CONSOLE APPENDER (STDOUT) -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{20} - %msg%n</pattern>
+            <pattern>${LOG_PATTERN_CONSOLE}</pattern>
+            <charset>UTF-8</charset>
         </encoder>
     </appender>
 
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/${LOG_FILE_NAME}-${byDay}.log</file>
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- APPLICATION LOGS - All levels -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <appender name="FILE_APP" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE_NAME}-app-${byDay}.log</file>
         <encoder>
-            <pattern>${LOG_PATTERN}</pattern>
+            <pattern>${LOG_PATTERN_DETAILED}</pattern>
+            <charset>UTF-8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}-%d{yyyy-MM-dd}-%i.log</fileNamePattern>
+            <fileNamePattern>${LOG_PATH}/archive/${LOG_FILE_NAME}-app-%d{yyyy-MM-dd}-%i.log.gz</fileNamePattern>
             <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
-            <maxHistory>10</maxHistory>
-            <totalSizeCap>5GB</totalSizeCap>
+            <maxHistory>${MAX_HISTORY_DAYS}</maxHistory>
+            <totalSizeCap>${MAX_TOTAL_SIZE}</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ERROR LOGS - ERROR and FATAL only -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <appender name="FILE_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_PATH}/${LOG_FILE_NAME}-error-${byDay}.log</file>
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
             <level>ERROR</level>
@@ -33,29 +58,122 @@
             <onMismatch>DENY</onMismatch>
         </filter>
         <encoder>
-            <pattern>${LOG_PATTERN}</pattern>
+            <pattern>${LOG_PATTERN_DETAILED}</pattern>
+            <charset>UTF-8</charset>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}-error-%d{yyyy-MM-dd}-%i.log</fileNamePattern>
+            <fileNamePattern>${LOG_PATH}/archive/${LOG_FILE_NAME}-error-%d{yyyy-MM-dd}-%i.log.gz</fileNamePattern>
             <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
-            <maxHistory>30</maxHistory>
-            <totalSizeCap>5GB</totalSizeCap>
+            <maxHistory>${MAX_HISTORY_DAYS}</maxHistory>
+            <totalSizeCap>${MAX_TOTAL_SIZE}</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <logger name="com.internal" level="INFO" additivity="false">
-        <appender-ref ref="FILE" />
-        <appender-ref ref="ERROR_FILE" />
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- PERFORMANCE LOGS - Database, API, Business Logic -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <appender name="FILE_PERFORMANCE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE_NAME}-performance-${byDay}.log</file>
+        <encoder>
+            <pattern>${LOG_PATTERN_DETAILED}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/archive/${LOG_FILE_NAME}-performance-%d{yyyy-MM-dd}-%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${MAX_HISTORY_DAYS}</maxHistory>
+            <totalSizeCap>${MAX_TOTAL_SIZE}</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- SECURITY LOGS - Authentication, Authorization -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <appender name="FILE_SECURITY" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE_NAME}-security-${byDay}.log</file>
+        <encoder>
+            <pattern>${LOG_PATTERN_DETAILED}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/archive/${LOG_FILE_NAME}-security-%d{yyyy-MM-dd}-%i.log.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${MAX_HISTORY_DAYS}</maxHistory>
+            <totalSizeCap>${MAX_TOTAL_SIZE}</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ASYNC APPENDER FOR BETTER PERFORMANCE -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="FILE_APP" />
+    </appender>
+
+    <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>256</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="FILE_ERROR" />
+    </appender>
+
+    <appender name="ASYNC_PERFORMANCE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>256</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="FILE_PERFORMANCE" />
+    </appender>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- LOGGER CONFIGURATIONS -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- APPLICATION LOGGERS -->
+    <logger name="com.emenu" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_FILE" />
+        <appender-ref ref="ASYNC_ERROR" />
         <appender-ref ref="CONSOLE" />
     </logger>
 
-    <logger name="org.springframework" level="WARN" />
-    <logger name="org.hibernate" level="WARN" />
-    <logger name="com.zaxxer.hikari" level="WARN" />
+    <!-- PERFORMANCE MONITORING LOGGERS -->
+    <logger name="com.emenu.performance" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_PERFORMANCE" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
 
+    <logger name="com.emenu.api" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_PERFORMANCE" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <!-- SECURITY LOGGERS -->
+    <logger name="com.emenu.security" level="INFO" additivity="false">
+        <appender-ref ref="FILE_SECURITY" />
+        <appender-ref ref="ASYNC_ERROR" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+
+    <logger name="org.springframework.security" level="INFO" additivity="false">
+        <appender-ref ref="FILE_SECURITY" />
+    </logger>
+
+    <!-- SUPPRESS VERBOSE FRAMEWORK LOGS -->
+    <logger name="org.springframework" level="WARN" />
+    <logger name="org.springframework.web" level="WARN" />
+    <logger name="org.springframework.security.web" level="INFO" />
+    <logger name="org.hibernate" level="WARN" />
+    <logger name="org.hibernate.SQL" level="DEBUG" />
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" />
+    <logger name="com.zaxxer.hikari" level="WARN" />
+    <logger name="org.postgresql" level="WARN" />
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- ROOT LOGGER - Default logging configuration -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
     <root level="INFO">
         <appender-ref ref="CONSOLE" />
-        <appender-ref ref="FILE" />
-        <appender-ref ref="ERROR_FILE" />
+        <appender-ref ref="ASYNC_FILE" />
+        <appender-ref ref="ASYNC_ERROR" />
     </root>
+
 </configuration>
