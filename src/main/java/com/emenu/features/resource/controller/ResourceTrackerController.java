@@ -35,7 +35,7 @@ public class ResourceTrackerController {
      *   "sortDirection": "DESC"
      * }
      */
-    @PostMapping("/search")
+    @PostMapping("/get-all")
     public ResponseEntity<ApiResponse<PaginationResponse<ResourceTrackerResponse>>> search(
             @Valid @RequestBody ResourceTrackerFilterRequest request) {
         PaginationResponse<ResourceTrackerResponse> response = resourceTrackerService.search(request);

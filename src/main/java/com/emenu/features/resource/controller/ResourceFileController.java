@@ -43,7 +43,7 @@ public class ResourceFileController {
      *   "sortDirection": "DESC"
      * }
      */
-    @PostMapping("/search")
+    @PostMapping("/get-all")
     public ResponseEntity<ApiResponse<PaginationResponse<ResourceFileResponse>>> search(
             @Valid @RequestBody ResourceFileFilterRequest request) {
         PaginationResponse<ResourceFileResponse> response = resourceFileService.search(request);
